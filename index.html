@@ -864,7 +864,7 @@ async function triggerAndPoll() {
   async function fetchWithRetry(sym,tf,tries=3){
     for(let attempt=0;attempt<tries;attempt++){
       try{
-        const url=`${BINANCE}/api/v3/klines?symbol=${sym}&interval=${tf}&limit=120`;
+        const url=`${BINANCE}/api/v3/klines?symbol=${sym}&interval=${tf}&limit=60`;
         const res=await fetch(url);
         if(res.status===429||res.status===418){
           await new Promise(r=>setTimeout(r,(attempt+1)*2000));continue;
@@ -882,22 +882,23 @@ async function triggerAndPoll() {
   }
 
   // Collect unique symbols to fetch 24h change once per symbol
-  const chgCache={};
-  const uniqueSyms=[...new Set(SCAN_PAIRS)];
-  // fetch 24h changes in batches of 5
-  for(let i=0;i<uniqueSyms.length;i+=5){
-    await Promise.allSettled(uniqueSyms.slice(i,i+5).map(async sym=>{
-      try{
-        const url=`${BINANCE}/api/v3/ticker/24hr?symbol=${sym}`;
-        const res=await fetch(url);
-        const d=await res.json();
-        chgCache[sym]=parseFloat(d.priceChangePercent)||0;
-      }catch(e){chgCache[sym]=0;}
-    }));
-    await new Promise(r=>setTimeout(r,200));
-  }
+  const chgCache = {};
 
-  for(let i=0;i<jobs.length;i+=2){
+try {
+  const res = await fetch(`${BINANCE}/api/v3/ticker/24hr`);
+  const allTickers = await res.json();
+
+  allTickers.forEach(t => {
+    chgCache[t.symbol] = parseFloat(t.priceChangePercent) || 0;
+  });
+
+} catch(e) {
+  console.error('Ticker fetch failed', e);
+}
+
+  const CONCURRENT_REQUESTS = 15;
+
+for(let i=0;i<jobs.length;i+=CONCURRENT_REQUESTS){
     const batch=jobs.slice(i,i+2);
     await Promise.allSettled(batch.map(async({sym,tf})=>{
       const candles=await fetchWithRetry(sym,tf);
@@ -912,7 +913,6 @@ async function triggerAndPoll() {
       pfg.style.width=Math.round((done/jobs.length)*100)+'%';
       ptxt.textContent=`SCANNING… ${done} / ${jobs.length}`;
     }));
-    await new Promise(r=>setTimeout(r,600));
   }
 
   // Find NEW signals vs previous scan
