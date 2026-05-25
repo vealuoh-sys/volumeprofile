@@ -359,7 +359,6 @@ footer{margin-top:18px;padding-top:10px;border-top:1px solid var(--border);displ
   <div class="hdr-right">
     <div class="scan-time" id="scanTime">LAST SCAN: —</div>
     <div class="ws-status" id="wsStatus"><span class="ws-dot"></span><span id="wsLabel">WS OFF</span></div>
-    <div class="live-pill"><div class="dot"></div>LIVE</div>
     <button class="icon-btn" onclick="openAlertModal()" title="Price Alerts">🔔</button>
     <button class="icon-btn" id="themeBtn" onclick="toggleTheme()" title="Theme">🌙</button>
     <button class="scan-btn" id="scanBtn" onclick="triggerAndPoll()"><span id="scanIcon">⟳</span> SCAN NOW</button>
@@ -603,8 +602,8 @@ const DEFAULT_PAIRS=[
   'ACTUSDT','GRASSUSDT','HYPEUSDT','SOLVUSDT','XDCUSDT','POLUSDT','ONDOUSDT','UXLINKUSDT','LAYERUSDT','BIOUSDT',
   'VINEUSDT','CHILLGUYUSDT','NEIROUSDT','MOODENGUSDT','GOATUSDT','TRUMPUSDT','MELANIAUSDT','FARTCOINUSDT','DEGOUSDT','LPTUSDT',
   'AEVOUSDT','OMNIUSDT','SAGAUSDT','VANRYUSDT','ETHFIUSDT','XAIUSDT','MANTAUSDT','FRONTUSDT','NFPUSDT','AIUSDT',
-  'RNDRUSDT','WOOUSDT','SFPUSDT','BANDUSDT','OCEANUSDT','LRCUSDT','STORJUSDT','ANKRUSDT','BATUSDT','CHZUSDT',
-  'ENJUSDT','ONTUSDT','ZECUSDT','DASHUSDT','QTUMUSDT','IOSTUSDT','RVNUSDT','ZILUSDT','HOTUSDT'
+  'WOOUSDT','SFPUSDT','BANDUSDT','OCEANUSDT','LRCUSDT','STORJUSDT','ANKRUSDT','BATUSDT','CHZUSDT','ENJUSDT',
+  'ONTUSDT','ZECUSDT','DASHUSDT','QTUMUSDT','IOSTUSDT','RVNUSDT','ZILUSDT','HOTUSDT','ICPUSDT','SONICUSDT'
 ];
 
 // STATE
@@ -722,7 +721,7 @@ function renderHeatBar(heat){const segs=Array.from({length:5},(_,i)=>`<div class
 function detectFreshness(candles,vp){const n=candles.length,last=candles[n-1],prev=candles[n-2],prev2=candles[n-3];if((prev.close<=vp.vah&&last.close>vp.vah)||(prev.close<vp.val&&last.close>=vp.val)||(last.low<=vp.poc*1.003&&last.close>vp.poc))return'HOT';if(prev2&&((prev2.close<=vp.vah&&prev.close>vp.vah)||(prev2.close<vp.val&&prev.close>=vp.val)))return'WARM';return'STALE';}
 
 // 11. SIGNAL AGE
-function getSignalAge(ts){const diff=Date.now()-ts;const mins=Math.floor(diff/60000);if(mins<1)return{text:'JUST NOW',cls:'fresh'};if(mins<60)return{text:`${mins}m ago`,cls:mins<15?'fresh':'mid'};return{text:`${Math.floor(mins/60)}h ago`,cls:''};}
+function getSignalAge(ts){if(!ts)return{text:"—",cls:""};const diff=Date.now()-ts;const secs=Math.floor(diff/1000);if(secs<90)return{text:"JUST NOW",cls:"fresh"};const mins=Math.floor(diff/60000);if(mins<5)return{text:mins+"m ago",cls:"fresh"};if(mins<30)return{text:mins+"m ago",cls:"mid"};if(mins<60)return{text:mins+"m ago",cls:""};return{text:Math.floor(mins/60)+"h ago",cls:""};} 
 
 // TYPE RESOLVER
 function resolveType(bt,div,volTier){if(bt==='WARNING')return'WARNING';if(div==='BULLISH'){if(bt==='VAL')return'VAL_DIV';if(bt==='POC')return'POC_DIV';}if(volTier==='SPIKE'||volTier==='CONFIRMED'){if(bt==='VAH')return'VAH_SPIKE';if(bt==='VAL')return'VAL_SPIKE';if(bt==='POC')return'POC_SPIKE';}return bt;}
@@ -730,8 +729,35 @@ function resolveType(bt,div,volTier){if(bt==='WARNING')return'WARNING';if(div===
 // 1. MTF MAP
 function buildMTFMap(signals){const map={};signals.forEach(s=>{if(!map[s.symbol])map[s.symbol]=new Set();map[s.symbol].add(s.tf);});return map;}
 
-// 7. R:R CALCULATOR
-function calcRR(price,vp,sigType){const bt=baseType(sigType||'POC');let stop,t1,t2;if(bt==='VAL'||bt==='POC'){stop=vp.val*0.997;t1=vp.poc;t2=vp.vah;}else if(bt==='VAH'){stop=vp.vah*0.997;t1=vp.vah+(vp.vah-vp.val)*0.5;t2=vp.vah+(vp.vah-vp.val)*1.0;}else{stop=price*0.98;t1=price*1.02;t2=price*1.04;}const risk=Math.abs(price-stop),reward=Math.abs(t1-price);const rr=risk>0?(reward/risk).toFixed(2):'0';const riskPct=((risk/price)*100).toFixed(2);return{entry:price,stop,t1,t2,rr,riskPct};}
+// 7. R:R CALCULATOR — stop/target based on signal type
+function calcRR(price,vp,sigType){
+  const bt=baseType(sigType||'POC');
+  const range=vp.vah-vp.val;
+  let stop,t1,t2;
+  if(bt==='VAL'){
+    // Long at VAL: stop below VAL, targets POC then VAH
+    stop=vp.val*(1-0.003);       // 0.3% below VAL
+    t1=vp.poc;                   // Target 1 = POC
+    t2=vp.vah;                   // Target 2 = VAH
+  } else if(bt==='POC'){
+    // Long at POC bounce: stop below POC, targets above
+    stop=vp.poc*(1-0.003);
+    t1=vp.vah;
+    t2=vp.vah+range*0.5;
+  } else if(bt==='VAH'){
+    // Breakout above VAH: stop just below VAH, targets above
+    stop=vp.vah*(1-0.003);       // just below VAH
+    t1=vp.vah+range*0.5;         // 50% of value area above VAH
+    t2=vp.vah+range*1.0;         // full value area above VAH
+  } else {
+    stop=price*0.98;t1=price*1.02;t2=price*1.04;
+  }
+  const risk=Math.abs(price-stop);
+  const reward=Math.abs(t1-price);
+  const rr=risk>0?(reward/risk).toFixed(2):'0';
+  const riskPct=((risk/price)*100).toFixed(2);
+  return{entry:price,stop,t1,t2,rr,riskPct};
+}
 
 // 6. BACKTEST
 function runBacktest(candles){const vp=calcVP(candles.slice(0,-5));if(!vp)return{wr:0,trades:0};let wins=0,trades=0;for(let i=5;i<candles.length-5;i++){const cur=candles[i],prev=candles[i-1];const wasSignal=(prev.close<vp.val&&cur.close>=vp.val)||(cur.low<=vp.poc*1.003&&cur.close>vp.poc);if(wasSignal){trades++;const maxFwd=Math.max(...candles.slice(i+1,i+6).map(c=>c.high));if(maxFwd>=cur.close*1.02)wins++;}}return{wr:trades>0?Math.round((wins/trades)*100):0,trades};}
@@ -808,11 +834,27 @@ function detectSignals(symbol,candles,tf,chg,ts){
   const makeSig=(bt,type)=>{
     const conf=calcConfluence(candles,vp,rsiArr,div,trend,volTier,ms,session,liqSweep,sr,obs);
     const heat=calcHeat(conf.total,volTier,div,ms,liqSweep);
-    let str=bt==='VAH'?50:bt==='VAL'?50:bt==='POC'?45:10;
-    if(trend==='UP')str+=20;else if(trend==='DOWN')str-=10;
-    if(volTier==='SPIKE')str+=20;else if(volTier==='CONFIRMED')str+=12;else if(volTier==='STRONG')str+=6;
-    if(div==='BULLISH')str+=10;if(div==='BEARISH')str-=20;
-    str=Math.min(100,Math.max(0,str));
+    // Better strength: varies 20-99 based on all factors
+    let str=35;
+    if(bt==='VAL')str+=12;else if(bt==='VAH')str+=10;else if(bt==='POC')str+=8;
+    // Trend alignment (big factor)
+    if(trend==='UP'&&(bt==='VAL'||bt==='POC'))str+=18;
+    else if(trend==='UP'&&bt==='VAH')str+=12;
+    else if(trend==='DOWN'&&bt==='VAH')str+=10;
+    else if(trend==='DOWN')str-=10;
+    // Volume
+    if(volTier==='SPIKE')str+=18;else if(volTier==='CONFIRMED')str+=10;else if(volTier==='STRONG')str+=5;else str-=5;
+    // Divergence
+    if(div==='BULLISH')str+=10;if(div==='BEARISH')str-=15;
+    // Market structure
+    if(['BOS','HH'].includes(ms)&&bt!=='WARNING')str+=8;
+    if(['CHOCH','LL'].includes(ms))str-=8;
+    if(ms==='HL'&&bt!=='WARNING')str+=4;
+    // Liquidity sweep
+    if(liqSweep&&liqSweep.type==='BULL_SWEEP')str+=10;
+    // Confluence contribution
+    str+=Math.round(conf.total*0.15);
+    str=Math.min(99,Math.max(20,str));
     return{symbol,price:cur.close,vp,tf,type,trend,volTier,volRatio,ema20,ema50,chg,strength:str,confluence:conf.total,confluenceFactors:conf.factors,heat,ms,msLabel,freshness,session:session.session,liqSweep,sr,obs,fvgs,volDelta,ts:ts||Date.now()};
   };
   if(prev.close<=vp.vah&&cur.close>vp.vah){if(div==='BEARISH'){sigs.push({...makeSig('WARNING','WARNING'),strength:10,heat:1});}else{sigs.push(makeSig('VAH',resolveType('VAH',div,volTier)));}}
@@ -870,14 +912,15 @@ async function triggerAndPoll(){
     ]);
     const results=[];
     const chg=chgCache[sym]||0;
-    if(c1h){candleCache[sym+'-1h']=c1h;try{results.push(...detectSignals(sym,c1h,'1h',chg,ts));}catch(e){}}
-    if(c4h){candleCache[sym+'-4h']=c4h;try{results.push(...detectSignals(sym,c4h,'4h',chg,ts));}catch(e){}}
-    if(c1d){candleCache[sym+'-1d']=c1d;try{results.push(...detectSignals(sym,c1d,'1d',chg,ts));}catch(e){}}
+    const now=Date.now(); // per-coin timestamp so age is accurate
+    if(c1h){candleCache[sym+'-1h']=c1h;try{results.push(...detectSignals(sym,c1h,'1h',chg,now));}catch(e){}}
+    if(c4h){candleCache[sym+'-4h']=c4h;try{results.push(...detectSignals(sym,c4h,'4h',chg,now));}catch(e){}}
+    if(c1d){candleCache[sym+'-1d']=c1d;try{results.push(...detectSignals(sym,c1d,'1d',chg,now));}catch(e){}}
     return results;
   }
 
-  const ts=Date.now();
-  const BATCH=8; // 8 coins at once × 3 TFs each = 24 parallel requests per batch
+  const scanStartTs=Date.now();
+  const BATCH=12; // 12 coins × 3 TFs = 36 parallel requests per batch — fast but safe
 
   for(let i=0;i<pairs.length;i+=BATCH){
     const batch=pairs.slice(i,i+BATCH);
