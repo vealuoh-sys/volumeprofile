@@ -1042,10 +1042,368 @@ let layerState = {
   VAH:true, POC:true, VAL:true,
   EMA20:true, EMA50:true,
   VOL:true, RSI:true,
-  SR:{}, OB:{}   // keyed by index: SR[0], OB[0] etc
+  SR:{}, OB:{}
 };
-// References to series/lines so we can show/hide them
-let layerRefs = {};
+// Stores {series, data, opts} for each layer so we can remove+recreate
+let layerDefs = {};
+let _srList=[], _obList=[];
+
+// ── Price precision ───────────────────────────────
+function getPriceDecimals(p){
+  if(!p||p<=0)return 6;
+  if(p>=1000)return 2;if(p>=100)return 3;if(p>=10)return 4;if(p>=1)return 4;
+  if(p>=0.1)return 5;if(p>=0.01)return 6;if(p>=0.001)return 7;
+  if(p>=0.0001)return 8;return 10;
+}
+function getMinMove(p){const d=getPriceDecimals(p);return parseFloat((1/Math.pow(10,d)).toFixed(d));}
+function fmtPrice(p){if(!p&&p!==0)return'—';return p.toFixed(getPriceDecimals(p));}
+
+// ── Layer toolbar render ──────────────────────────
+function renderLayerToolbar(){
+  const bar=document.getElementById('layerToolbar');if(!bar)return;
+  const btn=(label,color,on,fn)=>{
+    const bg=on?`rgba(${color.startsWith('#')?hexToRgb(color):'0,0,0'},.15)`:'transparent';
+    const brd=on?color:'#1E3A55';const op=on?'1':'0.4';
+    return `<button onclick="${fn}" style="background:${bg};border:1px solid ${brd};color:${color};font-family:'Space Mono',monospace;font-size:.48rem;padding:2px 8px;cursor:pointer;opacity:${op};transition:all .15s;white-space:nowrap">${label}</button>`;
+  };
+  // Count S/R by type for clean numbering
+  const rs=_srList.filter(l=>l.type==='R'),ss=_srList.filter(l=>l.type==='S');
+  let rIdx=0,sIdx=0;
+  let html='<div style="display:flex;align-items:center;gap:4px;padding:5px 10px;background:#071220;border-bottom:1px solid #132435;flex-wrap:wrap;">';
+  html+='<span style="font-size:.46rem;color:#3A6880;letter-spacing:.12em;flex-shrink:0">LAYERS:</span>';
+  html+=btn('VAH','#FF5E3A',layerState.VAH,"toggleLyr('VAH')");
+  html+=btn('POC','#FFD700',layerState.POC,"toggleLyr('POC')");
+  html+=btn('VAL','#00FFB2',layerState.VAL,"toggleLyr('VAL')");
+  html+='<span style="color:#1E3A55;margin:0 2px">│</span>';
+  html+=btn('EMA20','#FF9500',layerState.EMA20,"toggleLyr('EMA20')");
+  html+=btn('EMA50','#BF5FFF',layerState.EMA50,"toggleLyr('EMA50')");
+  if(_srList.length){
+    html+='<span style="color:#1E3A55;margin:0 2px">│</span>';
+    _srList.forEach((l,i)=>{
+      const key='SR'+i;
+      if(layerState.SR[key]===undefined)layerState.SR[key]=true;
+      // Clean label: R1, R2, S1, S2
+      const lbl=l.type==='R'?'R'+(++rIdx):'S'+(++sIdx);
+      html+=btn(lbl,'#FFD740',layerState.SR[key],`toggleSR(${i})`);
+    });
+  }
+  if(_obList.length){
+    html+='<span style="color:#1E3A55;margin:0 2px">│</span>';
+    _obList.forEach((ob,i)=>{
+      const key='OB'+i;
+      if(layerState.OB[key]===undefined)layerState.OB[key]=true;
+      const lbl=(ob.type==='BULL'?'OB↑':'OB↓')+(i+1);
+      html+=btn(lbl,ob.type==='BULL'?'#7C4DFF':'#FF4081',layerState.OB[key],`toggleOB(${i})`);
+    });
+  }
+  html+='<span style="color:#1E3A55;margin:0 2px">│</span>';
+  html+=btn('VOL','#00BFFF',layerState.VOL,"toggleLyr('VOL')");
+  html+=btn('RSI','#CF9FFF',layerState.RSI,"toggleLyr('RSI')");
+  html+='<span style="color:#1E3A55;margin:0 2px">│</span>';
+  html+=`<button onclick="resetAllLayers()" style="background:transparent;border:1px solid #3A6880;color:#3A6880;font-family:'Space Mono',monospace;font-size:.46rem;padding:2px 8px;cursor:pointer">SHOW ALL</button>`;
+  html+='</div>';
+  bar.innerHTML=html;
+}
+function hexToRgb(hex){
+  const r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);
+  return`${r},${g},${b}`;
+}
+
+// ── Add a line series that acts as a level line ───
+// Returns the series so caller can store it for removal
+function addLevelSeries(val, color, label, lineStyle, visible, decimals, minMove){
+  if(!mainChartObj||!candleSeries) return null;
+  const lwC = candleSeries.data ? candleSeries.data() : null;
+  // Build flat data from current candle series time range
+  const data = (layerDefs._lwC||[]).map(c=>({time:c.time, value:val}));
+  if(!data.length) return null;
+  const s = mainChartObj.addLineSeries({
+    color, lineWidth:1.5, lineStyle,
+    title: label,          // shows as label on the right axis
+    priceLineVisible:false,
+    lastValueVisible:true, // this IS the right-axis label
+    crosshairMarkerVisible:false,
+    visible,
+    priceFormat:{type:'price', precision:decimals, minMove:minMove}
+  });
+  s.setData(data);
+  return s;
+}
+
+// ── Toggle VP / EMA layers ────────────────────────
+function toggleLyr(key){
+  layerState[key]=!layerState[key];
+  const on=layerState[key];
+  if(key==='VOL'){
+    document.getElementById('volChart').style.display=on?'':'none';
+  } else if(key==='RSI'){
+    document.getElementById('rsiChart').style.display=on?'':'none';
+  } else {
+    const s=layerDefs[key];
+    if(s&&mainChartObj){
+      // Remove and re-add — the ONLY reliable way in LightweightCharts
+      try{mainChartObj.removeSeries(s);}catch(e){}
+      if(on){
+        const d=layerDefs[key+'_opts'];
+        if(d){
+          const ns=mainChartObj.addLineSeries(d.opts);
+          ns.setData(d.data);
+          layerDefs[key]=ns;
+        }
+      } else {
+        layerDefs[key]=null;
+      }
+    }
+  }
+  renderLayerToolbar();
+}
+
+// ── Toggle S/R ────────────────────────────────────
+function toggleSR(idx){
+  const key='SR'+idx;
+  layerState.SR[key]=!layerState.SR[key];
+  const on=layerState.SR[key];
+  const s=layerDefs[key];
+  if(mainChartObj){
+    if(s){try{mainChartObj.removeSeries(s);}catch(e){}}
+    if(on){
+      const d=layerDefs[key+'_opts'];
+      if(d){const ns=mainChartObj.addLineSeries(d.opts);ns.setData(d.data);layerDefs[key]=ns;}
+    } else {
+      layerDefs[key]=null;
+    }
+  }
+  renderLayerToolbar();
+}
+
+// ── Toggle OB ─────────────────────────────────────
+function toggleOB(idx){
+  const key='OB'+idx;
+  layerState.OB[key]=!layerState.OB[key];
+  const on=layerState.OB[key];
+  ['_top','_bot'].forEach(suffix=>{
+    const s=layerDefs[key+suffix];
+    if(mainChartObj){
+      if(s){try{mainChartObj.removeSeries(s);}catch(e){}}
+      if(on){
+        const d=layerDefs[key+suffix+'_opts'];
+        if(d){const ns=mainChartObj.addLineSeries(d.opts);ns.setData(d.data);layerDefs[key+suffix]=ns;}
+      } else {
+        layerDefs[key+suffix]=null;
+      }
+    }
+  });
+  renderLayerToolbar();
+}
+
+// ── Reset all ─────────────────────────────────────
+function resetAllLayers(){
+  layerState.VAH=true;layerState.POC=true;layerState.VAL=true;
+  layerState.EMA20=true;layerState.EMA50=true;layerState.VOL=true;layerState.RSI=true;
+  Object.keys(layerState.SR).forEach(k=>layerState.SR[k]=true);
+  Object.keys(layerState.OB).forEach(k=>layerState.OB[k]=true);
+  loadChartData(currentSymbol,currentTF,null);
+}
+
+function buildLWChart(candles,vp,sr,obs){
+  destroyAllCharts();
+  layerDefs={};
+  _srList=sr||[];_obList=obs||[];
+
+  const mainEl=document.getElementById('mainChart');
+  const volEl=document.getElementById('volChart');
+  const rsiEl=document.getElementById('rsiChart');
+  const mainH=Math.max(240,window.innerHeight*.35);
+  const vpW=window.innerWidth>700?108:0;
+  const mainW=Math.max(270,Math.floor(window.innerWidth*.95-vpW-16));
+  mainEl.style.height=mainH+'px';
+  [mainEl,volEl,rsiEl].forEach(el=>el.style.width=mainW+'px');
+  volEl.style.display=layerState.VOL?'':'none';
+  rsiEl.style.display=layerState.RSI?'':'none';
+
+  const lastClose=candles[candles.length-1].close;
+  const DEC=getPriceDecimals(lastClose);
+  const MM=getMinMove(lastClose);
+
+  const common={
+    layout:{background:{color:'#080F18'},textColor:'#3A6880',fontFamily:"'Space Mono',monospace",fontSize:9},
+    rightPriceScale:{borderColor:'#132435',textColor:'#3A6880'},
+    timeScale:{visible:false},handleScroll:false,handleScale:false
+  };
+
+  mainChartObj=LightweightCharts.createChart(mainEl,{
+    width:mainW,height:mainH,
+    layout:{background:{color:'#080F18'},textColor:'#3A6880',fontFamily:"'Space Mono',monospace",fontSize:10},
+    grid:{vertLines:{color:'rgba(19,36,53,0.6)'},horzLines:{color:'rgba(19,36,53,0.6)'}},
+    crosshair:{mode:LightweightCharts.CrosshairMode.Normal,
+      vertLine:{color:'rgba(0,191,255,0.4)',labelBackgroundColor:'#0C1A28'},
+      horzLine:{color:'rgba(0,191,255,0.4)',labelBackgroundColor:'#0C1A28'}},
+    rightPriceScale:{borderColor:'#132435',textColor:'#3A6880',scaleMargins:{top:.05,bottom:.05}},
+    timeScale:{borderColor:'#132435',timeVisible:true,secondsVisible:false},
+    handleScroll:{mouseWheel:true,pressedMouseMove:true},
+    handleScale:{mouseWheel:true,pinch:true},
+    localization:{priceFormatter:p=>'$'+fmtPrice(p)}
+  });
+
+  // ── Candlestick series ────────────────────────────
+  candleSeries=mainChartObj.addCandlestickSeries({
+    upColor:'#00FFB2',downColor:'#FF5E3A',
+    borderUpColor:'#00FFB2',borderDownColor:'#FF5E3A',
+    wickUpColor:'rgba(0,255,178,0.6)',wickDownColor:'rgba(255,94,58,0.6)',
+    priceFormat:{type:'price',precision:DEC,minMove:MM}
+  });
+  const lwC=candles.map(c=>({time:Math.floor(c.time/1000),open:c.open,high:c.high,low:c.low,close:c.close}));
+  candleSeries.setData(lwC);
+  layerDefs._lwC=lwC; // store for later use by addLevelSeries
+
+  // ── Helper: make flat line data ───────────────────
+  const flat=val=>lwC.map(c=>({time:c.time,value:val}));
+
+  // ── Helper: add a level as line series (removable!) ─
+  const addLevel=(storeKey, val, color, label, lineStyle, visible)=>{
+    const opts={
+      color, lineWidth:1.5, lineStyle,
+      title:label,          // right-axis label
+      priceLineVisible:false,
+      lastValueVisible:visible, // hide label when series hidden
+      crosshairMarkerVisible:false,
+      visible,
+      priceFormat:{type:'price',precision:DEC,minMove:MM}
+    };
+    const data=flat(val);
+    const s=mainChartObj.addLineSeries(opts);
+    s.setData(data);
+    layerDefs[storeKey]=s;
+    layerDefs[storeKey+'_opts']={opts:{...opts,visible:true,lastValueVisible:true},data};
+    return s;
+  };
+
+  // ── VP Levels ─────────────────────────────────────
+  addLevel('VAH', vp.vah,'#FF5E3A','◀ VAH',  LightweightCharts.LineStyle.Dashed,  layerState.VAH);
+  addLevel('POC', vp.poc,'#FFD700','◀ POC',  LightweightCharts.LineStyle.Dashed,  layerState.POC);
+  addLevel('VAL', vp.val,'#00FFB2','◀ VAL',  LightweightCharts.LineStyle.Dashed,  layerState.VAL);
+
+  // ── S/R levels — clean labels R1,R2,S1,S2 ────────
+  if(sr&&sr.length){
+    let rCount=0,sCount=0;
+    sr.slice(0,5).forEach((l,i)=>{
+      const key='SR'+i;
+      if(layerState.SR[key]===undefined) layerState.SR[key]=true;
+      const label = l.type==='R' ? '◀ R'+(++rCount) : '◀ S'+(++sCount);
+      addLevel(key, l.price,'rgba(255,215,64,0.7)',label,
+        LightweightCharts.LineStyle.Dotted, layerState.SR[key]);
+    });
+  }
+
+  // ── Orderblocks — each individually removable ─────
+  if(obs&&obs.length){
+    obs.forEach((ob,i)=>{
+      const key='OB'+i;
+      if(layerState.OB[key]===undefined) layerState.OB[key]=true;
+      const color=ob.type==='BULL'?'rgba(124,77,255,0.8)':'rgba(255,64,129,0.8)';
+      const colorFaint=ob.type==='BULL'?'rgba(124,77,255,0.3)':'rgba(255,64,129,0.3)';
+      const label=`◀ OB${ob.type==='BULL'?'↑':'↓'}${i+1}`;
+      // Top line (with label)
+      const topOpts={color,lineWidth:1.5,lineStyle:LightweightCharts.LineStyle.Solid,
+        title:label,priceLineVisible:false,lastValueVisible:layerState.OB[key],
+        crosshairMarkerVisible:false,visible:layerState.OB[key],
+        priceFormat:{type:'price',precision:DEC,minMove:MM}};
+      const topData=flat(ob.top);
+      const ts=mainChartObj.addLineSeries(topOpts);ts.setData(topData);
+      layerDefs[key+'_top']=ts;
+      layerDefs[key+'_top_opts']={opts:{...topOpts,visible:true,lastValueVisible:true},data:topData};
+      // Bottom line (no label)
+      const botOpts={color:colorFaint,lineWidth:1,lineStyle:LightweightCharts.LineStyle.Solid,
+        title:'',priceLineVisible:false,lastValueVisible:false,
+        crosshairMarkerVisible:false,visible:layerState.OB[key],
+        priceFormat:{type:'price',precision:DEC,minMove:MM}};
+      const botData=flat(ob.bottom);
+      const bs=mainChartObj.addLineSeries(botOpts);bs.setData(botData);
+      layerDefs[key+'_bot']=bs;
+      layerDefs[key+'_bot_opts']={opts:{...botOpts,visible:true},data:botData};
+    });
+  }
+
+  // ── EMA lines ─────────────────────────────────────
+  const e20d=candles.filter(c=>c.ema20>0).map(c=>({time:Math.floor(c.time/1000),value:c.ema20}));
+  const e50d=candles.filter(c=>c.ema50>0).map(c=>({time:Math.floor(c.time/1000),value:c.ema50}));
+  if(e20d.length){
+    const opts={color:'#FF9500',lineWidth:1.5,lineStyle:LightweightCharts.LineStyle.Solid,
+      title:'EMA20',priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false,
+      visible:layerState.EMA20,priceFormat:{type:'price',precision:DEC,minMove:MM}};
+    const s=mainChartObj.addLineSeries(opts);s.setData(e20d);
+    layerDefs.EMA20=s;layerDefs.EMA20_opts={opts:{...opts,visible:true},data:e20d};
+  }
+  if(e50d.length){
+    const opts={color:'#BF5FFF',lineWidth:1.5,lineStyle:LightweightCharts.LineStyle.Solid,
+      title:'EMA50',priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false,
+      visible:layerState.EMA50,priceFormat:{type:'price',precision:DEC,minMove:MM}};
+    const s=mainChartObj.addLineSeries(opts);s.setData(e50d);
+    layerDefs.EMA50=s;layerDefs.EMA50_opts={opts:{...opts,visible:true},data:e50d};
+  }
+
+  // ── Signal marker ──────────────────────────────────
+  const last2=lwC[lwC.length-1];
+  const sc=currentSigType&&currentSigType.startsWith('VAH')?'#FF5E3A':currentSigType&&currentSigType.startsWith('VAL')?'#00FFB2':'#FFD700';
+  const ss2=currentSigType&&currentSigType.startsWith('VAH')?'arrowUp':currentSigType&&currentSigType.startsWith('VAL')?'arrowDown':'circle';
+  const sp=currentSigType&&currentSigType.startsWith('VAH')?'belowBar':'aboveBar';
+  if(currentSigType) candleSeries.setMarkers([{time:last2.time,position:sp,color:sc,shape:ss2,text:currentSigType,size:2}]);
+
+  // ── Crosshair tooltip (full precision) ───────────
+  const tooltip=document.getElementById('chartTooltip');
+  mainChartObj.subscribeCrosshairMove(param=>{
+    if(!param.time||!param.seriesData){tooltip.style.display='none';return;}
+    const cd=param.seriesData.get(candleSeries);if(!cd){tooltip.style.display='none';return;}
+    const d=new Date(param.time*1000);
+    document.getElementById('ttTime').textContent=(d.getMonth()+1)+'/'+d.getDate()+' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
+    document.getElementById('ttOpen').textContent='$'+fmtPrice(cd.open);
+    document.getElementById('ttHigh').textContent='$'+fmtPrice(cd.high);
+    document.getElementById('ttLow').textContent='$'+fmtPrice(cd.low);
+    document.getElementById('ttClose').textContent='$'+fmtPrice(cd.close);
+    tooltip.style.display='block';
+    const m=candles.find(c=>Math.floor(c.time/1000)===param.time);
+    document.getElementById('ttVol').textContent=m?m.volume.toLocaleString('en',{maximumFractionDigits:0}):'—';
+  });
+
+  // ── Volume chart ──────────────────────────────────
+  volChartObj=LightweightCharts.createChart(volEl,{
+    ...common,width:mainW,height:62,
+    grid:{vertLines:{color:'rgba(19,36,53,0.4)'},horzLines:{visible:false}},
+    rightPriceScale:{...common.rightPriceScale,scaleMargins:{top:.1,bottom:0}},
+    crosshair:{horzLine:{visible:false},vertLine:{color:'rgba(0,191,255,0.3)'}}
+  });
+  const vs=volChartObj.addHistogramSeries({priceFormat:{type:'volume'},priceScaleId:''});
+  vs.setData(candles.map(c=>({time:Math.floor(c.time/1000),value:c.volume,
+    color:c.close>=c.open?'rgba(0,255,178,0.4)':'rgba(255,94,58,0.35)'})));
+
+  // ── RSI chart ─────────────────────────────────────
+  rsiChartObj=LightweightCharts.createChart(rsiEl,{
+    ...common,width:mainW,height:62,
+    grid:{vertLines:{color:'rgba(19,36,53,0.4)'},horzLines:{color:'rgba(19,36,53,0.4)'}},
+    rightPriceScale:{...common.rightPriceScale,scaleMargins:{top:.1,bottom:.1}}
+  });
+  const rs=rsiChartObj.addLineSeries({color:'#CF9FFF',lineWidth:2,priceScaleId:''});
+  rs.setData(candles.map(c=>({time:Math.floor(c.time/1000),value:c.rsi||50})));
+  // RSI reference lines as line series (not price lines) so they render correctly
+  const rsiOb=rsiChartObj.addLineSeries({color:'rgba(255,94,58,0.5)',lineWidth:1,
+    lineStyle:LightweightCharts.LineStyle.Dashed,lastValueVisible:true,title:'OB',priceScaleId:''});
+  rsiOb.setData(lwC.map(c=>({time:c.time,value:70})));
+  const rsiOs=rsiChartObj.addLineSeries({color:'rgba(0,255,178,0.5)',lineWidth:1,
+    lineStyle:LightweightCharts.LineStyle.Dashed,lastValueVisible:true,title:'OS',priceScaleId:''});
+  rsiOs.setData(lwC.map(c=>({time:c.time,value:30})));
+
+  // ── Sync timescales ───────────────────────────────
+  mainChartObj.timeScale().subscribeVisibleLogicalRangeChange(range=>{
+    if(range){
+      if(volChartObj&&layerState.VOL) volChartObj.timeScale().setVisibleLogicalRange(range);
+      if(rsiChartObj&&layerState.RSI) rsiChartObj.timeScale().setVisibleLogicalRange(range);
+    }
+  });
+  mainChartObj.timeScale().fitContent();
+
+  // ── Render toolbar ────────────────────────────────
+  renderLayerToolbar();
+}
 
 // ── Auto-detect decimal precision from price ──────
 function getPriceDecimals(price){
@@ -1070,307 +1428,6 @@ function fmtPrice(p){
   return p.toFixed(d);
 }
 
-// ── Render the layer toggle toolbar ──────────────
-function renderLayerToolbar(srList, obList){
-  const bar = document.getElementById('layerToolbar');
-  if(!bar) return;
-
-  const btn = (id, label, color, on, onclick) => {
-    const op = on ? '1' : '0.35';
-    const border = on ? color : '#1E3A55';
-    return `<button onclick="${onclick}" style="background:transparent;border:1px solid ${border};color:${color};font-family:'Space Mono',monospace;font-size:.5rem;padding:2px 7px;cursor:pointer;opacity:${op};letter-spacing:.06em;transition:all .15s;" title="${on?'Hide':'Show'} ${label}">${label}</button>`;
-  };
-
-  let html = '<div style="display:flex;align-items:center;gap:5px;padding:5px 10px;background:#0C1A28;border-bottom:1px solid #132435;flex-wrap:wrap;">';
-  html += '<span style="font-size:.48rem;color:#3A6880;letter-spacing:.14em;margin-right:3px;">LAYERS:</span>';
-
-  // VP Levels
-  html += btn('VAH','VAH','#FF5E3A',layerState.VAH,"toggleLayer('VAH')");
-  html += btn('POC','POC','#FFD700',layerState.POC,"toggleLayer('POC')");
-  html += btn('VAL','VAL','#00FFB2',layerState.VAL,"toggleLayer('VAL')");
-
-  // EMAs
-  html += '<span style="font-size:.44rem;color:#3A6880;margin:0 3px;">|</span>';
-  html += btn('EMA20','EMA20','#FF9500',layerState.EMA20,"toggleLayer('EMA20')");
-  html += btn('EMA50','EMA50','#BF5FFF',layerState.EMA50,"toggleLayer('EMA50')");
-
-  // S/R levels individually
-  if(srList && srList.length){
-    html += '<span style="font-size:.44rem;color:#3A6880;margin:0 3px;">|</span>';
-    srList.forEach((l,i) => {
-      const key = 'SR'+i;
-      const lbl = l.type+'('+(i+1)+')';
-      if(layerState.SR[key]===undefined) layerState.SR[key]=true;
-      html += btn(key, lbl, '#FFD740', layerState.SR[key], `toggleSR(${i})`);
-    });
-  }
-
-  // OB levels individually
-  if(obList && obList.length){
-    html += '<span style="font-size:.44rem;color:#3A6880;margin:0 3px;">|</span>';
-    obList.forEach((ob,i) => {
-      const key = 'OB'+i;
-      const lbl = 'OB'+(ob.type==='BULL'?'↑':'↓')+(i+1);
-      if(layerState.OB[key]===undefined) layerState.OB[key]=true;
-      html += btn(key, lbl, ob.type==='BULL'?'#7C4DFF':'#FF4081', layerState.OB[key], `toggleOB(${i})`);
-    });
-  }
-
-  // Volume & RSI
-  html += '<span style="font-size:.44rem;color:#3A6880;margin:0 3px;">|</span>';
-  html += btn('VOL','VOL','#00BFFF',layerState.VOL,"toggleLayer('VOL')");
-  html += btn('RSI','RSI','#CF9FFF',layerState.RSI,"toggleLayer('RSI')");
-
-  // Reset all
-  html += '<span style="font-size:.44rem;color:#3A6880;margin:0 3px;">|</span>';
-  html += `<button onclick="resetLayers()" style="background:transparent;border:1px solid #3A6880;color:#3A6880;font-family:'Space Mono',monospace;font-size:.48rem;padding:2px 7px;cursor:pointer;letter-spacing:.06em;">SHOW ALL</button>`;
-
-  html += '</div>';
-  bar.innerHTML = html;
-}
-
-function toggleLayer(key){
-  layerState[key] = !layerState[key];
-  const ref = layerRefs[key];
-  if(!ref) return;
-  if(key==='VOL'){
-    const el = document.getElementById('volChart');
-    el.style.display = layerState.VOL ? '' : 'none';
-  } else if(key==='RSI'){
-    const el = document.getElementById('rsiChart');
-    el.style.display = layerState.RSI ? '' : 'none';
-  } else if(ref.applyOptions){
-    // Line series
-    ref.applyOptions({visible: layerState[key]});
-  } else if(ref.length){
-    // Price lines array
-    ref.forEach(pl => {
-      try{ pl.applyOptions({visible: layerState[key]}); }catch(e){}
-    });
-  }
-  // Re-render toolbar to update button styles
-  renderLayerToolbar(layerRefs._srList||[], layerRefs._obList||[]);
-}
-
-function toggleSR(idx){
-  const key='SR'+idx;
-  layerState.SR[key] = !layerState.SR[key];
-  const refs = layerRefs['SR'+idx];
-  if(refs) refs.forEach(r=>{ try{r.applyOptions({visible:layerState.SR[key]});}catch(e){} });
-  renderLayerToolbar(layerRefs._srList||[], layerRefs._obList||[]);
-}
-
-function toggleOB(idx){
-  const key='OB'+idx;
-  layerState.OB[key] = !layerState.OB[key];
-  const refs = layerRefs['OB'+idx];
-  if(refs) refs.forEach(r=>{ try{r.applyOptions({visible:layerState.OB[key]});}catch(e){} });
-  renderLayerToolbar(layerRefs._srList||[], layerRefs._obList||[]);
-}
-
-function resetLayers(){
-  layerState.VAH=true;layerState.POC=true;layerState.VAL=true;
-  layerState.EMA20=true;layerState.EMA50=true;layerState.VOL=true;layerState.RSI=true;
-  Object.keys(layerState.SR).forEach(k=>layerState.SR[k]=true);
-  Object.keys(layerState.OB).forEach(k=>layerState.OB[k]=true);
-  // Reload chart to apply all
-  loadChartData(currentSymbol,currentTF,null);
-}
-
-function buildLWChart(candles,vp,sr,obs){
-  destroyAllCharts();
-  layerRefs = {}; // reset refs
-  layerRefs._srList = sr||[];
-  layerRefs._obList = obs||[];
-
-  const mainEl=document.getElementById('mainChart');
-  const volEl=document.getElementById('volChart');
-  const rsiEl=document.getElementById('rsiChart');
-  const mainH=Math.max(240,window.innerHeight*.35);
-  const vpW=window.innerWidth>700?108:0;
-  const mainW=Math.max(270,Math.floor(window.innerWidth*.95-vpW-16));
-  mainEl.style.height=mainH+'px';
-  [mainEl,volEl,rsiEl].forEach(el=>el.style.width=mainW+'px');
-
-  // Apply VOL/RSI visibility state
-  volEl.style.display = layerState.VOL ? '' : 'none';
-  rsiEl.style.display = layerState.RSI ? '' : 'none';
-
-  // ── Detect price precision from actual candle close ──
-  const lastClose = candles[candles.length-1].close;
-  const decimals  = getPriceDecimals(lastClose);
-  const minMove   = getMinMove(lastClose);
-
-  const common={
-    layout:{background:{color:'#080F18'},textColor:'#3A6880',fontFamily:"'Space Mono',monospace",fontSize:9},
-    rightPriceScale:{borderColor:'#132435',textColor:'#3A6880'},
-    timeScale:{visible:false},handleScroll:false,handleScale:false
-  };
-
-  mainChartObj=LightweightCharts.createChart(mainEl,{
-    width:mainW,height:mainH,
-    layout:{background:{color:'#080F18'},textColor:'#3A6880',fontFamily:"'Space Mono',monospace",fontSize:10},
-    grid:{vertLines:{color:'rgba(19,36,53,0.6)'},horzLines:{color:'rgba(19,36,53,0.6)'}},
-    crosshair:{
-      mode:LightweightCharts.CrosshairMode.Normal,
-      vertLine:{color:'rgba(0,191,255,0.4)',labelBackgroundColor:'#0C1A28'},
-      horzLine:{color:'rgba(0,191,255,0.4)',labelBackgroundColor:'#0C1A28'}
-    },
-    rightPriceScale:{borderColor:'#132435',textColor:'#3A6880',scaleMargins:{top:.05,bottom:.05}},
-    timeScale:{borderColor:'#132435',timeVisible:true,secondsVisible:false},
-    handleScroll:{mouseWheel:true,pressedMouseMove:true},
-    handleScale:{mouseWheel:true,pinch:true},
-    // ── Full price precision on axis ──
-    localization:{
-      priceFormatter: p => '$'+fmtPrice(p)
-    }
-  });
-
-  // Candlestick series with correct price format
-  candleSeries=mainChartObj.addCandlestickSeries({
-    upColor:'#00FFB2',downColor:'#FF5E3A',
-    borderUpColor:'#00FFB2',borderDownColor:'#FF5E3A',
-    wickUpColor:'rgba(0,255,178,0.6)',wickDownColor:'rgba(255,94,58,0.6)',
-    priceFormat:{type:'price',precision:decimals,minMove:minMove}
-  });
-
-  const lwC=candles.map(c=>({time:Math.floor(c.time/1000),open:c.open,high:c.high,low:c.low,close:c.close}));
-  candleSeries.setData(lwC);
-  const mkLine=val=>lwC.map(c=>({time:c.time,value:val}));
-
-  // Helper: add level line + price line, returns refs for toggling
-  const addLvl=(val,color,title,style,visible)=>{
-    const lineSeries=mainChartObj.addLineSeries({
-      color,lineWidth:1,lineStyle:style,title:'',
-      priceLineVisible:false,lastValueVisible:false,
-      crosshairMarkerVisible:false,visible,
-      priceFormat:{type:'price',precision:decimals,minMove:minMove}
-    });
-    lineSeries.setData(mkLine(val));
-    // Price line on the axis (right side label)
-    const priceLine=candleSeries.createPriceLine({
-      price:val,color,lineWidth:1.5,lineStyle:style,
-      axisLabelVisible:true,
-      title:`◀ ${title}`,
-      visible
-    });
-    return{lineSeries,priceLine};
-  };
-
-  // ── VP Levels ────────────────────────────────────
-  const vahRef = addLvl(vp.vah,'#FF5E3A','VAH',2,layerState.VAH);
-  const pocRef = addLvl(vp.poc,'#FFD700','POC',2,layerState.POC);
-  const valRef = addLvl(vp.val,'#00FFB2','VAL',2,layerState.VAL);
-  layerRefs.VAH = [vahRef.lineSeries, vahRef.priceLine];
-  layerRefs.POC = [pocRef.lineSeries, pocRef.priceLine];
-  layerRefs.VAL = [valRef.lineSeries, valRef.priceLine];
-
-  // ── S/R Levels (each individually togglable) ─────
-  if(sr && sr.length){
-    sr.slice(0,5).forEach((l,i)=>{
-      const key='SR'+i;
-      if(layerState.SR[key]===undefined) layerState.SR[key]=true;
-      const vis=layerState.SR[key];
-      const lbl=`${l.type}${i+1}(${l.touches})`;
-      const color='rgba(255,215,64,0.55)';
-      const ref=addLvl(l.price,color,lbl,3,vis);
-      layerRefs[key]=[ref.lineSeries,ref.priceLine];
-    });
-  }
-
-  // ── Orderblocks (each individually togglable) ────
-  if(obs && obs.length){
-    obs.forEach((ob,i)=>{
-      const key='OB'+i;
-      if(layerState.OB[key]===undefined) layerState.OB[key]=true;
-      const vis=layerState.OB[key];
-      const color=ob.type==='BULL'?'rgba(124,77,255,0.65)':'rgba(255,64,129,0.65)';
-      const colorFaint=ob.type==='BULL'?'rgba(124,77,255,0.2)':'rgba(255,64,129,0.2)';
-      const topRef=addLvl(ob.top,color,`OB${ob.type==='BULL'?'↑':'↓'}${i+1}`,1,vis);
-      const botRef=addLvl(ob.bottom,colorFaint,'',1,vis);
-      layerRefs[key]=[topRef.lineSeries,topRef.priceLine,botRef.lineSeries,botRef.priceLine];
-    });
-  }
-
-  // ── EMA Lines ────────────────────────────────────
-  const e20d=candles.filter(c=>c.ema20>0).map(c=>({time:Math.floor(c.time/1000),value:c.ema20}));
-  const e50d=candles.filter(c=>c.ema50>0).map(c=>({time:Math.floor(c.time/1000),value:c.ema50}));
-  if(e20d.length){
-    const s=mainChartObj.addLineSeries({color:'#FF9500',lineWidth:1.5,title:'EMA20',
-      priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false,
-      visible:layerState.EMA20,
-      priceFormat:{type:'price',precision:decimals,minMove:minMove}});
-    s.setData(e20d);
-    layerRefs.EMA20=s;
-  }
-  if(e50d.length){
-    const s=mainChartObj.addLineSeries({color:'#BF5FFF',lineWidth:1.5,title:'EMA50',
-      priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false,
-      visible:layerState.EMA50,
-      priceFormat:{type:'price',precision:decimals,minMove:minMove}});
-    s.setData(e50d);
-    layerRefs.EMA50=s;
-  }
-
-  // ── Signal marker ────────────────────────────────
-  const last2=lwC[lwC.length-1];
-  const sc=currentSigType&&currentSigType.startsWith('VAH')?'#FF5E3A':currentSigType&&currentSigType.startsWith('VAL')?'#00FFB2':'#FFD700';
-  const ss=currentSigType&&currentSigType.startsWith('VAH')?'arrowUp':currentSigType&&currentSigType.startsWith('VAL')?'arrowDown':'circle';
-  const sp=currentSigType&&currentSigType.startsWith('VAH')?'belowBar':'aboveBar';
-  if(currentSigType) candleSeries.setMarkers([{time:last2.time,position:sp,color:sc,shape:ss,text:currentSigType,size:2}]);
-
-  // ── Crosshair tooltip (full price precision) ─────
-  const tooltip=document.getElementById('chartTooltip');
-  mainChartObj.subscribeCrosshairMove(param=>{
-    if(!param.time||!param.seriesData){tooltip.style.display='none';return;}
-    const cd=param.seriesData.get(candleSeries);
-    if(!cd){tooltip.style.display='none';return;}
-    const d=new Date(param.time*1000);
-    document.getElementById('ttTime').textContent=(d.getMonth()+1)+'/'+d.getDate()+' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
-    document.getElementById('ttOpen').textContent ='$'+fmtPrice(cd.open);
-    document.getElementById('ttHigh').textContent ='$'+fmtPrice(cd.high);
-    document.getElementById('ttLow').textContent  ='$'+fmtPrice(cd.low);
-    document.getElementById('ttClose').textContent='$'+fmtPrice(cd.close);
-    tooltip.style.display='block';
-    const m=candles.find(c=>Math.floor(c.time/1000)===param.time);
-    document.getElementById('ttVol').textContent=m?m.volume.toLocaleString('en',{maximumFractionDigits:0}):'—';
-  });
-
-  // ── Volume chart ──────────────────────────────────
-  volChartObj=LightweightCharts.createChart(volEl,{
-    ...common,width:mainW,height:62,
-    grid:{vertLines:{color:'rgba(19,36,53,0.4)'},horzLines:{visible:false}},
-    rightPriceScale:{...common.rightPriceScale,scaleMargins:{top:.1,bottom:0}},
-    crosshair:{horzLine:{visible:false},vertLine:{color:'rgba(0,191,255,0.3)'}}
-  });
-  const vs=volChartObj.addHistogramSeries({priceFormat:{type:'volume'},priceScaleId:''});
-  vs.setData(candles.map(c=>({time:Math.floor(c.time/1000),value:c.volume,color:c.close>=c.open?'rgba(0,255,178,0.4)':'rgba(255,94,58,0.35)'})));
-  layerRefs.VOL='vol'; // handled via display style
-
-  // ── RSI chart ─────────────────────────────────────
-  rsiChartObj=LightweightCharts.createChart(rsiEl,{
-    ...common,width:mainW,height:62,
-    grid:{vertLines:{color:'rgba(19,36,53,0.4)'},horzLines:{color:'rgba(19,36,53,0.4)'}},
-    rightPriceScale:{...common.rightPriceScale,scaleMargins:{top:.1,bottom:.1}}
-  });
-  const rs=rsiChartObj.addLineSeries({color:'#CF9FFF',lineWidth:2,priceScaleId:''});
-  rs.setData(candles.map(c=>({time:Math.floor(c.time/1000),value:c.rsi||50})));
-  rs.createPriceLine({price:70,color:'rgba(255,94,58,0.4)',lineWidth:1,lineStyle:2,axisLabelVisible:true,title:'OB'});
-  rs.createPriceLine({price:30,color:'rgba(0,255,178,0.4)',lineWidth:1,lineStyle:2,axisLabelVisible:true,title:'OS'});
-  layerRefs.RSI='rsi'; // handled via display style
-
-  // ── Sync timescales ───────────────────────────────
-  mainChartObj.timeScale().subscribeVisibleLogicalRangeChange(range=>{
-    if(range){
-      if(layerState.VOL&&volChartObj) volChartObj.timeScale().setVisibleLogicalRange(range);
-      if(layerState.RSI&&rsiChartObj) rsiChartObj.timeScale().setVisibleLogicalRange(range);
-    }
-  });
-  mainChartObj.timeScale().fitContent();
-
-  // ── Render the toolbar ────────────────────────────
-  renderLayerToolbar(sr||[], obs||[]);
-}
 
 function switchModalTF(btn){document.querySelectorAll('.modal-tf-btn').forEach(b=>b.classList.remove('on'));btn.classList.add('on');currentTF=btn.dataset.tf;document.getElementById('modalTF').textContent=currentTF.toUpperCase();document.getElementById('chartLoadingState').style.display='flex';document.getElementById('chartLoadingState').innerHTML='<div>LOADING…</div><div class="loading-bar"><div class="loading-bar-inner"></div></div>';document.getElementById('chartContainer').style.display='none';document.getElementById('chartInfoBar').style.display='none';loadChartData(currentSymbol,currentTF,null);}
 function closeModal(){document.getElementById('modalOverlay').classList.remove('open');destroyAllCharts();}
