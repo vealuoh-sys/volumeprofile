@@ -13,7 +13,7 @@
   --acc:#00FFB2;--acc2:#00BFFF;--warn:#FFB800;
   --vah:#FF5E3A;--val:#00FFB2;--poc:#FFD700;
   --text:#B8D4E8;--muted:#3A6880;--muted2:#2A4D65;
-  --ema20:#FF9500;--ema50:#BF5FFF;--chart-bg:#080F18;
+  --ema5:#FFD600;--ema12:#FF3B30;--ema16:#FF9500;--ema40:#00BFFF;--ema53:#050505;--chart-bg:#080F18;
   --heat5:#FF1744;--heat4:#FF6D00;--heat3:#FFD600;--heat2:#69F0AE;--heat1:#00B0FF;
   --ob:#7C4DFF;--liq:#FF4081;--sr:#FFD740;
 }
@@ -23,7 +23,7 @@
   --acc:#00AA77;--acc2:#0077BB;--warn:#CC8800;
   --vah:#CC3300;--val:#00AA77;--poc:#AA8800;
   --text:#1A2A3A;--muted:#6A8A9A;--muted2:#8AAABB;
-  --ema20:#CC6600;--ema50:#7700CC;--chart-bg:#FFFFFF;
+  --ema5:#AA8800;--ema12:#CC2222;--ema16:#CC6600;--ema40:#0077BB;--ema53:#111111;--chart-bg:#FFFFFF;
   --heat5:#CC0000;--heat4:#CC5500;--heat3:#AA8800;--heat2:#007755;--heat1:#005599;
   --ob:#5500CC;--liq:#CC0055;--sr:#AA7700;
 }
@@ -67,6 +67,8 @@ header{display:flex;align-items:center;justify-content:space-between;padding:16p
 .session-lbl{font-size:.52rem;color:var(--muted);letter-spacing:.14em;}
 .market-struct{font-size:.55rem;letter-spacing:.09em;}
 .market-struct.BULL{color:var(--acc);}.market-struct.BEAR{color:var(--vah);}.market-struct.NEUTRAL{color:var(--muted);}
+.dom-flow{font-size:.52rem;letter-spacing:.09em;color:var(--muted);}
+.dom-flow.BULL{color:var(--acc);}.dom-flow.BEAR{color:var(--vah);}.dom-flow.NEUTRAL{color:var(--poc);}
 #sessionClock{font-size:.52rem;color:var(--muted);}
 .controls{display:flex;align-items:center;gap:7px;margin-bottom:9px;flex-wrap:wrap;}
 .ctl-label{font-size:.55rem;color:var(--muted);letter-spacing:.16em;margin-right:2px;}
@@ -75,6 +77,7 @@ header{display:flex;align-items:center;justify-content:space-between;padding:16p
 .sig-btn.on-vah{border-color:var(--vah);color:var(--vah);background:rgba(255,94,58,.07);}
 .sig-btn.on-val{border-color:var(--val);color:var(--val);background:rgba(0,255,178,.06);}
 .sig-btn.on-poc{border-color:var(--poc);color:var(--poc);background:rgba(255,215,0,.06);}
+.sig-btn.on-ema{border-color:var(--ema5);color:var(--ema5);background:rgba(255,214,0,.07);}
 .divider{width:1px;height:20px;background:var(--border);margin:0 3px;}
 .flex1{flex:1;}
 .filter-row{display:flex;align-items:center;gap:8px;margin-bottom:13px;flex-wrap:wrap;}
@@ -187,6 +190,9 @@ header{display:flex;align-items:center;justify-content:space-between;padding:16p
 .badge.POC_DIV{background:rgba(255,215,0,.18);color:#FFE55C;border:2px solid var(--poc);font-weight:900;}
 .badge.POC_SPIKE{background:rgba(255,215,0,.18);color:#FFE55C;border:2px solid var(--poc);font-weight:900;}
 .badge.WARNING{background:rgba(255,94,58,.12);color:#ff5e3a;border:1px dashed #ff5e3a;animation:pulse 2s infinite;}
+.badge.EMA_BULL{background:rgba(255,214,0,.16);color:#FFD600;border:1px solid rgba(255,214,0,.45);font-weight:900;}
+.badge.EMA_WARN{background:rgba(255,149,0,.14);color:#FF9500;border:1px dashed rgba(255,149,0,.55);font-weight:900;}
+.badge.EMA_BEAR{background:rgba(255,59,48,.13);color:#FF3B30;border:1px solid rgba(255,59,48,.55);font-weight:900;}
 .badge.NEW-TAG{background:rgba(0,255,178,.15);color:var(--acc);border:1px solid var(--acc);font-size:.44rem;padding:1px 4px;}
 .badge.MTF-TAG{background:rgba(124,77,255,.15);color:#BF5FFF;border:1px solid rgba(124,77,255,.4);font-size:.44rem;padding:1px 4px;}
 @keyframes pulse{0%{opacity:1}50%{opacity:.5}100%{opacity:1}}
@@ -194,10 +200,8 @@ header{display:flex;align-items:center;justify-content:space-between;padding:16p
 .fresh-tag.HOT{color:#FF1744;border:1px solid #FF1744;background:rgba(255,23,68,.1);}
 .fresh-tag.WARM{color:#FF9500;border:1px solid #FF9500;background:rgba(255,149,0,.1);}
 .ms-badge{display:inline-flex;align-items:center;font-size:.48rem;padding:1px 5px;white-space:nowrap;}
-.ms-badge.HH,.ms-badge.BOS{color:#00FFB2;border:1px solid rgba(0,255,178,.3);}
-.ms-badge.HL{color:#69F0AE;border:1px solid rgba(105,240,174,.3);}
-.ms-badge.LH,.ms-badge.CHOCH{color:#FF9500;border:1px solid rgba(255,149,0,.3);}
-.ms-badge.LL{color:#FF5E3A;border:1px solid rgba(255,94,58,.3);}
+.ms-badge.HH,.ms-badge.HL,.ms-badge.BOS_UP,.ms-badge.CHOCH_UP{color:#00FFB2;border:1px solid rgba(0,255,178,.3);}
+.ms-badge.LH,.ms-badge.LL,.ms-badge.BOS_DOWN,.ms-badge.CHOCH_DOWN{color:#FF5E3A;border:1px solid rgba(255,94,58,.3);}
 .ob-badge{font-size:.46rem;padding:1px 4px;color:var(--ob);border:1px solid rgba(124,77,255,.4);background:rgba(124,77,255,.08);}
 .liq-badge{font-size:.46rem;padding:1px 4px;color:var(--liq);border:1px solid rgba(255,64,129,.4);background:rgba(255,64,129,.08);animation:pulse 2s infinite;}
 .heat-bar{display:flex;align-items:center;gap:2px;}
@@ -371,6 +375,9 @@ footer{margin-top:18px;padding-top:10px;border-top:1px solid var(--border);displ
   <span class="divider" style="height:12px;"></span>
   <span class="session-lbl">MARKET:</span>
   <span class="market-struct" id="marketStruct">—</span>
+  <span class="divider" style="height:12px;"></span>
+  <span class="session-lbl">DOM:</span>
+  <span class="dom-flow" id="domFlow">LOADING</span>
   <span class="flex1"></span>
   <span style="font-size:.52rem;color:var(--acc2);letter-spacing:.1em" id="proxCount"></span>
   <span class="session-lbl" id="activeGroupLabel" style="color:var(--warn)"></span>
@@ -385,6 +392,7 @@ footer{margin-top:18px;padding-top:10px;border-top:1px solid var(--border);displ
   <button class="sig-btn on-vah" data-sig="VAH" onclick="togSig(this)">▲ VAH</button>
   <button class="sig-btn on-val" data-sig="VAL" onclick="togSig(this)">▼ VAL</button>
   <button class="sig-btn on-poc" data-sig="POC" onclick="togSig(this)">◆ POC</button>
+  <button class="sig-btn on-ema" data-sig="EMA" onclick="togSig(this)">EMA</button>
   <div class="divider"></div>
   <button class="sig-btn" id="warnBtn" onclick="togWarn(this)" style="border-color:#ff5e3a;color:#ff5e3a;">⚠ FAKEOUTS</button>
   <button class="sig-btn" id="mtfBtn" onclick="togMTF(this)" style="border-color:#BF5FFF;color:#BF5FFF;">◈ MTF ONLY</button>
@@ -469,7 +477,7 @@ footer{margin-top:18px;padding-top:10px;border-top:1px solid var(--border);displ
 </div>
 <div class="heatmap-view" id="heatmapView"></div>
 <footer>
-  <div class="foot-note">VP 36-BIN · VALUE AREA 70% · EMA20+50 · MTF · CONFLUENCE · OB · LIQ SWEEP · SMC/FVG · SESSION · BACKTEST · CORR · R:R · NOTES · GROUPS · ALERTS · WS</div>
+  <div class="foot-note">VP 36-BIN · VALUE AREA 70% · EMA 5/12/16/40/53 · MTF · CONFLUENCE · OB · LIQ SWEEP · SMC/FVG · SESSION · BACKTEST · CORR · R:R · NOTES · GROUPS · ALERTS · WS</div>
   <div class="legend">
     <div class="leg-item"><div class="leg-dot" style="background:var(--vah)"></div>VAH</div>
     <div class="leg-item"><div class="leg-dot" style="background:var(--val)"></div>VAL</div>
@@ -503,8 +511,9 @@ footer{margin-top:18px;padding-top:10px;border-top:1px solid var(--border);displ
     </div>
     <div class="modal-ctx-bar">
       <div class="ctx-item">TREND <span class="ctx-val" id="ctxTrend">—</span></div>
-      <div class="ctx-item">EMA20 <span class="ctx-val" id="ctxEMA20">—</span></div>
-      <div class="ctx-item">EMA50 <span class="ctx-val" id="ctxEMA50">—</span></div>
+      <div class="ctx-item">EMA5 <span class="ctx-val" id="ctxEMA5">—</span></div>
+      <div class="ctx-item">EMA12 <span class="ctx-val" id="ctxEMA12">—</span></div>
+      <div class="ctx-item">EMA53 <span class="ctx-val" id="ctxEMA53">—</span></div>
       <div class="ctx-item">VOL <span class="ctx-val" id="ctxVolTier">—</span></div>
       <div class="ctx-item">RATIO <span class="ctx-val" id="ctxVolRatio">—</span></div>
       <div class="ctx-item">HEAT <span class="ctx-val" id="ctxHeat">—</span></div>
@@ -547,8 +556,11 @@ footer{margin-top:18px;padding-top:10px;border-top:1px solid var(--border);displ
         <div class="vp-sidebar">
           <div class="vp-sidebar-title">VOL PROFILE</div>
           <div class="vp-ema-legend">
-            <div class="vp-ema-row"><div class="vp-ema-dot" style="background:var(--ema20)"></div>EMA20</div>
-            <div class="vp-ema-row"><div class="vp-ema-dot" style="background:var(--ema50)"></div>EMA50</div>
+            <div class="vp-ema-row"><div class="vp-ema-dot" style="background:var(--ema5)"></div>EMA5</div>
+            <div class="vp-ema-row"><div class="vp-ema-dot" style="background:var(--ema12)"></div>EMA12</div>
+            <div class="vp-ema-row"><div class="vp-ema-dot" style="background:var(--ema16)"></div>EMA16</div>
+            <div class="vp-ema-row"><div class="vp-ema-dot" style="background:var(--ema40)"></div>EMA40</div>
+            <div class="vp-ema-row"><div class="vp-ema-dot" style="background:var(--ema53)"></div>EMA53 BASE</div>
             <div class="vp-ema-row"><div class="vp-ema-dot" style="background:var(--ob)"></div>OB</div>
             <div class="vp-ema-row"><div class="vp-ema-dot" style="background:var(--sr)"></div>S/R</div>
           </div>
@@ -560,7 +572,7 @@ footer{margin-top:18px;padding-top:10px;border-top:1px solid var(--border);displ
         <div class="info-cell"><div class="info-lbl">POC</div><div class="info-val poc-c" id="infoPOC">—</div></div>
         <div class="info-cell"><div class="info-lbl">VAL</div><div class="info-val val-c" id="infoVAL">—</div></div>
         <div class="info-cell"><div class="info-lbl">DIST POC</div><div class="info-val dist-c" id="infoDist">—</div></div>
-        <div class="info-cell"><div class="info-lbl">EMA TREND</div><div class="info-val" id="infoTrend">—</div></div>
+        <div class="info-cell"><div class="info-lbl">MS + EMA TREND</div><div class="info-val" id="infoTrend">—</div></div>
       </div>
     </div>
   </div>
@@ -611,20 +623,22 @@ const DEFAULT_PAIRS=[
 ];
 
 // STATE
-let activeTFs=new Set(['1h','4h','1d']),activeSigs=new Set(['VAH','VAL','POC']);
+let activeTFs=new Set(['1h','4h','1d']),activeSigs=new Set(['VAH','VAL','POC','EMA']);
 let showWarnings=false,mtfOnly=false,allSignals=[],minStrength=0;
 let sortKey='strength',sortDir='desc',scanHistory=[],prevSigKeys=new Set();
 let livePrices={},watchlist=[],priceAlerts=[],coinGroups=[],activeGroup=null,tradeNotes={};
 let wsConn=null,wsReconnectTimer=null,candleCache={};
 let currentSymbol=null,currentTF='1h',currentSigType=null;
 let mainChartObj=null,volChartObj=null,rsiChartObj=null,candleSeries=null;
+let dominanceBias={bias:'UNKNOWN',score:0,label:'DOM: OFF',btc:null,usdt:null,updated:0};
 
 const LABEL_MAP={
   VAH:'▲ VAH BREAK',VAH_SPIKE:'▲ VAH+SPIKE',VAL:'▼ VAL RECLAIM',
   VAL_DIV:'▼ VAL+DIV',VAL_SPIKE:'▼ VAL+SPIKE',POC:'◆ POC REACT',
-  POC_DIV:'◆ POC+DIV',POC_SPIKE:'◆ POC+SPIKE',WARNING:'⚠ VAH FAKEOUT'
+  POC_DIV:'◆ POC+DIV',POC_SPIKE:'◆ POC+SPIKE',WARNING:'⚠ VAH FAKEOUT',
+  EMA_BULL:'EMA BULL RUN',EMA_WARN:'EMA TAKE PROFIT',EMA_BEAR:'EMA BEAR EXIT'
 };
-function baseType(t){return t.startsWith('VAH')?'VAH':t.startsWith('VAL')?'VAL':t.startsWith('POC')?'POC':t;}
+function baseType(t){return t.startsWith('VAH')?'VAH':t.startsWith('VAL')?'VAL':t.startsWith('POC')?'POC':t.startsWith('EMA')?'EMA':t;}
 function sigKey(s){return`${s.symbol}-${s.type}-${s.tf}`;}
 function fp(p){if(!p&&p!==0)return'—';if(p>=10000)return p.toLocaleString('en',{maximumFractionDigits:1});if(p>=1)return p.toFixed(4);return p.toFixed(6);}
 function scanPairs(){return activeGroup?coinGroups.find(g=>g.name===activeGroup)?.coins||DEFAULT_PAIRS:DEFAULT_PAIRS;}
@@ -668,12 +682,62 @@ function updateSessionBar(){const{session,utcStr}=getCurrentSession();const chip
 
 // MATH HELPERS
 const VP_BINS=36;
+const EMA_STRATEGY=[
+  {key:'EMA5',prop:'ema5',period:5,color:'#FFD600',label:'EMA5'},
+  {key:'EMA12',prop:'ema12',period:12,color:'#FF3B30',label:'EMA12'},
+  {key:'EMA16',prop:'ema16',period:16,color:'#FF9500',label:'EMA16'},
+  {key:'EMA40',prop:'ema40',period:40,color:'#00BFFF',label:'EMA40'},
+  {key:'EMA53',prop:'ema53',period:53,color:'#050505',label:'EMA53 BASE'}
+];
+function isBullMS(ms){return['HH','HL','BOS_UP','CHOCH_UP'].includes(ms);}
+function isBearMS(ms){return['LH','LL','BOS_DOWN','CHOCH_DOWN'].includes(ms);}
 function calcVP(candles){let lo=Infinity,hi=-Infinity;candles.forEach(c=>{if(c.high>hi)hi=c.high;if(c.low<lo)lo=c.low;});const range=hi-lo;if(!range)return null;const binSize=range/VP_BINS,vol=new Array(VP_BINS).fill(0);candles.forEach(c=>{const idx=Math.min(Math.floor((c.typical-lo)/binSize),VP_BINS-1);vol[idx]+=c.volume;});let pocIdx=0;vol.forEach((v,i)=>{if(v>vol[pocIdx])pocIdx=i;});const poc=lo+(pocIdx+0.5)*binSize,total=vol.reduce((a,b)=>a+b,0);let vaVol=vol[pocIdx],vaLo=pocIdx,vaHi=pocIdx;while(vaVol<total*.70){const nLo=vaLo>0?vol[vaLo-1]:0,nHi=vaHi<VP_BINS-1?vol[vaHi+1]:0;if(nLo>=nHi&&vaLo>0){vaLo--;vaVol+=nLo;}else if(vaHi<VP_BINS-1){vaHi++;vaVol+=nHi;}else break;}return{poc,bins:vol,binSize,lo,hi,vah:lo+(vaHi+1)*binSize,val:lo+vaLo*binSize};}
 function calcEMA(candles,period){const ema=new Array(candles.length).fill(0);if(candles.length<period)return ema;let sum=0;for(let i=0;i<period;i++)sum+=candles[i].close;ema[period-1]=sum/period;const k=2/(period+1);for(let i=period;i<candles.length;i++)ema[i]=candles[i].close*k+ema[i-1]*(1-k);for(let i=0;i<period-1;i++)ema[i]=ema[period-1];return ema;}
-function detectTrend(candles){const e20=calcEMA(candles,20),e50=calcEMA(candles,50);const last=candles.length-1,p=candles[last].close;if(p>e20[last]&&e20[last]>e50[last])return{trend:'UP',ema20:e20[last],ema50:e50[last]};if(p<e20[last]&&e20[last]<e50[last])return{trend:'DOWN',ema20:e20[last],ema50:e50[last]};return{trend:'NEUTRAL',ema20:e20[last],ema50:e50[last]};}
+function attachEMAs(candles){const out={};EMA_STRATEGY.forEach(cfg=>{const arr=calcEMA(candles,cfg.period);out[cfg.prop]=arr;candles.forEach((c,i)=>{c[cfg.prop]=arr[i];});});return out;}
+function ensureEMAs(candles){if(!candles.length)return{};const last=candles[candles.length-1];const ready=EMA_STRATEGY.every(cfg=>typeof last[cfg.prop]==='number'&&last[cfg.prop]>0);if(!ready)return attachEMAs(candles);const out={};EMA_STRATEGY.forEach(cfg=>{out[cfg.prop]=candles.map(c=>c[cfg.prop]||0);});return out;}
+function crossedAbove(a,b,i){return a&&b&&i>0&&a[i-1]<=b[i-1]&&a[i]>b[i];}
+function crossedBelow(a,b,i){return a&&b&&i>0&&a[i-1]>=b[i-1]&&a[i]<b[i];}
+function detectEMAStrategy(candles){
+  const e=ensureEMAs(candles),i=candles.length-1;
+  const ema5=e.ema5?.[i]||0,ema12=e.ema12?.[i]||0,ema16=e.ema16?.[i]||0,ema40=e.ema40?.[i]||0,ema53=e.ema53?.[i]||0;
+  const fastUp=crossedAbove(e.ema5,e.ema53,i),finalUp=crossedAbove(e.ema12,e.ema53,i);
+  const fastDown=crossedBelow(e.ema5,e.ema53,i),finalDown=crossedBelow(e.ema12,e.ema53,i);
+  const coreBull=ema5>ema53&&ema12>ema53,coreBear=ema5<ema53&&ema12<ema53;
+  const stackedBull=coreBull&&ema5>ema12&&ema12>ema16&&ema16>ema53;
+  const stackedBear=coreBear&&ema5<ema12&&ema12<ema16&&ema16<ema53;
+  let bias='NEUTRAL',signal=null,label='EMA MIXED',score=0;
+  if(finalUp){bias='BULL';signal='EMA_BULL';label='EMA12 X 53 BULL';score=28;}
+  else if(fastUp){bias='BULL';signal='EMA_BULL';label='EMA5 X 53 LEAD';score=18;}
+  else if(finalDown){bias='BEAR';signal='EMA_BEAR';label='EMA12 X 53 BEAR';score=-28;}
+  else if(fastDown){bias='BEAR';signal='EMA_WARN';label='EMA5 X 53 WARN';score=-18;}
+  else if(stackedBull){bias='BULL';label='EMA BULL STACK';score=18;}
+  else if(stackedBear){bias='BEAR';label='EMA BEAR STACK';score=-18;}
+  else if(coreBull){bias='BULL';label='EMA BULL HOLD';score=12;}
+  else if(coreBear){bias='BEAR';label='EMA BEAR HOLD';score=-12;}
+  return{bias,signal,label,score,ema5,ema12,ema16,ema40,ema53,fastUp,finalUp,fastDown,finalDown,stackedBull,stackedBear};
+}
+function findSwingPivots(candles,left=2,right=2,lookback=90){
+  const highs=[],lows=[],start=Math.max(left,candles.length-lookback),end=candles.length-right;
+  for(let i=start;i<end;i++){
+    let isHigh=true,isLow=true;
+    for(let j=1;j<=left;j++){if(candles[i].high<=candles[i-j].high)isHigh=false;if(candles[i].low>=candles[i-j].low)isLow=false;}
+    for(let j=1;j<=right;j++){if(candles[i].high<=candles[i+j].high)isHigh=false;if(candles[i].low>=candles[i+j].low)isLow=false;}
+    if(isHigh)highs.push({idx:i,price:candles[i].high,time:candles[i].time,type:'H'});
+    if(isLow)lows.push({idx:i,price:candles[i].low,time:candles[i].time,type:'L'});
+  }
+  return{highs,lows,all:[...highs,...lows].sort((a,b)=>a.idx-b.idx)};
+}
+function detectTrend(candles){const ema=detectEMAStrategy(candles),ms=detectMarketStructure(candles);let trend='NEUTRAL';if(isBullMS(ms.ms))trend='UP';else if(isBearMS(ms.ms))trend='DOWN';else if(ema.bias==='BULL')trend='UP';else if(ema.bias==='BEAR')trend='DOWN';return{trend,...ema,msTrend:ms.dir||trend};}
 function classifyVol(candles){const avg=candles.slice(-21,-1).reduce((a,c)=>a+c.volume,0)/20;const cur=candles[candles.length-1].volume,ratio=avg>0?cur/avg:1;if(ratio>=3)return{volTier:'SPIKE',volRatio:ratio};if(ratio>=2)return{volTier:'CONFIRMED',volRatio:ratio};if(ratio>=1.5)return{volTier:'STRONG',volRatio:ratio};return{volTier:'NORMAL',volRatio:ratio};}
 function calcRSI(candles,period=14){const rsi=new Array(candles.length).fill(50);if(candles.length<=period)return rsi;let avgG=0,avgL=0;for(let i=1;i<=period;i++){const d=candles[i].close-candles[i-1].close;if(d>0)avgG+=d;else avgL-=d;}avgG/=period;avgL/=period;rsi[period]=avgL===0?100:100-(100/(1+avgG/avgL));for(let i=period+1;i<candles.length;i++){const d=candles[i].close-candles[i-1].close;avgG=(avgG*(period-1)+(d>0?d:0))/period;avgL=(avgL*(period-1)+(d<0?-d:0))/period;rsi[i]=avgL===0?100:100-(100/(1+avgG/avgL));}for(let i=0;i<period;i++)rsi[i]=rsi[period];return rsi;}
-function checkDiv(candles,rsi){const curr=candles.length-1;let sHi=-1,sLo=-1;for(let i=curr-2;i>=Math.max(1,curr-30);i--){if(sHi===-1&&candles[i].high>candles[i-1].high&&candles[i].high>candles[i+1].high)sHi=i;if(sLo===-1&&candles[i].low<candles[i-1].low&&candles[i].low<candles[i+1].low)sLo=i;if(sHi!==-1&&sLo!==-1)break;}if(sHi!==-1&&candles[curr].high>candles[sHi].high&&rsi[curr]<rsi[sHi]&&rsi[curr]>55)return'BEARISH';if(sLo!==-1&&candles[curr].low<candles[sLo].low&&rsi[curr]>rsi[sLo]&&rsi[curr]<45)return'BULLISH';return null;}
+function detectRSIDivergence(candles,rsi){
+  const piv=findSwingPivots(candles,2,2,90),divs=[];
+  const hs=piv.highs.filter(p=>rsi[p.idx]!=null).slice(-4),ls=piv.lows.filter(p=>rsi[p.idx]!=null).slice(-4);
+  if(hs.length>=2){const a=hs[hs.length-2],b=hs[hs.length-1];if(b.price>a.price&&rsi[b.idx]<rsi[a.idx])divs.push({type:'BEARISH',p1:a,p2:b,r1:rsi[a.idx],r2:rsi[b.idx]});}
+  if(ls.length>=2){const a=ls[ls.length-2],b=ls[ls.length-1];if(b.price<a.price&&rsi[b.idx]>rsi[a.idx])divs.push({type:'BULLISH',p1:a,p2:b,r1:rsi[a.idx],r2:rsi[b.idx]});}
+  return divs.sort((a,b)=>b.p2.idx-a.p2.idx)[0]||null;
+}
+function checkDiv(candles,rsi){const div=detectRSIDivergence(candles,rsi);return div?div.type:null;}
 
 // 5. MARKET STRUCTURE
 
@@ -806,7 +870,21 @@ function checkForFalseBreak(candles,vp,type){
   return false;
 }
 
-function detectMarketStructure(candles){const n=candles.length;if(n<10)return{ms:'NEUTRAL',label:'→NEUT',score:0};const sl=candles.slice(-20),highs=sl.map(c=>c.high),lows=sl.map(c=>c.low);const hh=highs[highs.length-1]>Math.max(...highs.slice(0,-3));const ll=lows[lows.length-1]<Math.min(...lows.slice(0,-3));const hl=lows.length>6&&lows[lows.length-1]>lows[lows.length-6];const lh=highs.length>6&&highs[highs.length-1]<highs[highs.length-6];const p5Hi=Math.max(...highs.slice(-6,-1)),p5Lo=Math.min(...lows.slice(-6,-1));const lC=candles[n-1];if(lC.close>p5Hi&&hl)return{ms:'BOS',label:'BOS↑',score:25};if(lC.close<p5Lo&&lh)return{ms:'CHOCH',label:'CHOCH↓',score:-20};if(hh&&hl)return{ms:'HH',label:'HH/HL↑',score:15};if(ll&&lh)return{ms:'LL',label:'LL/LH↓',score:-15};if(hh)return{ms:'HH',label:'HH↑',score:10};if(ll)return{ms:'LL',label:'LL↓',score:-10};if(hl)return{ms:'HL',label:'HL↑',score:5};if(lh)return{ms:'LH',label:'LH↓',score:-5};return{ms:'NEUTRAL',label:'→NEUT',score:0};}
+function detectMarketStructure(candles){
+  const n=candles.length;if(n<12)return{ms:'NEUTRAL',label:'NEUT',score:0,dir:'NEUTRAL'};
+  const piv=findSwingPivots(candles,2,2,90),hs=piv.highs,ls=piv.lows,last=candles[n-1];
+  if(hs.length<2||ls.length<2)return{ms:'NEUTRAL',label:'NEUT',score:0,dir:'NEUTRAL'};
+  const h1=hs[hs.length-2],h2=hs[hs.length-1],l1=ls[ls.length-2],l2=ls[ls.length-1];
+  const highState=h2.price>h1.price?'HH':'LH',lowState=l2.price>l1.price?'HL':'LL';
+  const swingDir=highState==='HH'&&lowState==='HL'?'UP':highState==='LH'&&lowState==='LL'?'DOWN':'NEUTRAL';
+  if(last.close>h2.price){const reversal=swingDir==='DOWN';return{ms:reversal?'CHOCH_UP':'BOS_UP',label:reversal?'CHOCH UP':'BOS UP',score:reversal?20:25,dir:'UP',breakLevel:h2.price};}
+  if(last.close<l2.price){const reversal=swingDir==='UP';return{ms:reversal?'CHOCH_DOWN':'BOS_DOWN',label:reversal?'CHOCH DOWN':'BOS DOWN',score:reversal?-20:-25,dir:'DOWN',breakLevel:l2.price};}
+  if(swingDir==='UP')return{ms:'HH',label:'HH/HL',score:15,dir:'UP',lastHigh:h2.price,lastLow:l2.price};
+  if(swingDir==='DOWN')return{ms:'LL',label:'LH/LL',score:-15,dir:'DOWN',lastHigh:h2.price,lastLow:l2.price};
+  const latest=h2.idx>l2.idx?highState:lowState;
+  const scores={HH:10,HL:6,LH:-6,LL:-10};
+  return{ms:latest,label:latest,score:scores[latest]||0,dir:isBullMS(latest)?'UP':isBearMS(latest)?'DOWN':'NEUTRAL',lastHigh:h2.price,lastLow:l2.price};
+}
 
 // 2. S&R
 function detectSR(candles,count=5){
@@ -855,9 +933,9 @@ function detectFVG(candles){const fvgs=[];for(let i=1;i<candles.length-1;i++){co
 function calcVolumeDelta(candles){const last=candles[candles.length-1];const range=last.high-last.low;if(range===0)return{buyPct:50,delta:'NEUT'};const bullPct=Math.round(((last.close-last.low)/range)*100);return{buyPct:bullPct,delta:bullPct>65?'BUY PRESSURE':bullPct<35?'SELL PRESSURE':'MIXED'};}
 
 // 1. CONFLUENCE ENGINE
-function calcConfluence(candles,vp,rsi,div,trend,volTier,ms,session,liqSweep,sr,obs,pattern,stopHunt,adx,mtfZones){
+function calcConfluence(candles,vp,rsi,div,trend,volTier,ms,session,liqSweep,sr,obs,pattern,stopHunt,adx,mtfZones,marketFlow=dominanceBias,symbol=''){
   const last=candles.length-1,price=candles[last].close;
-  const e20=candles[last].ema20||0,e50=candles[last].ema50||0;
+  const ema=detectEMAStrategy(candles);
   const factors=[];
   const nearVAH=Math.abs(price-vp.vah)/vp.vah<0.005,nearVAL=Math.abs(price-vp.val)/vp.val<0.005,nearPOC=Math.abs(price-vp.poc)/vp.poc<0.005;
   if(nearVAH||nearVAL||nearPOC)factors.push({n:'VP LEVEL',s:20});
@@ -867,10 +945,14 @@ function calcConfluence(candles,vp,rsi,div,trend,volTier,ms,session,liqSweep,sr,
   const lastRSI=rsi[last];
   if(nearVAL&&lastRSI<40)factors.push({n:'RSI OS',s:12});if(nearVAH&&lastRSI>60)factors.push({n:'RSI OB',s:12});
   if(div==='BULLISH')factors.push({n:'BULL DIV',s:15});if(div==='BEARISH')factors.push({n:'BEAR DIV',s:-15});
-  if(ms&&['BOS','HH','HL'].includes(ms)&&(nearVAL||nearPOC))factors.push({n:'MS BULL',s:15});
-  if(ms&&['CHOCH','LL','LH'].includes(ms)&&nearVAH)factors.push({n:'MS BEAR',s:-15});
+  if(ms&&isBullMS(ms)&&(nearVAL||nearPOC))factors.push({n:'MS BULL',s:15});
+  if(ms&&isBearMS(ms)&&nearVAH)factors.push({n:'MS BEAR',s:-15});
   const sw=session.weight||1;if(sw>1)factors.push({n:'SESSION',s:Math.round(12*(sw-1))});
-  if(e20>0&&e50>0){if(price>e20&&e20>e50)factors.push({n:'EMA STACK',s:10});if(price<e20&&e20<e50)factors.push({n:'EMA BEAR',s:-10});}
+  if(ema.score>0)factors.push({n:ema.signal==='EMA_BULL'?'EMA CROSS':'EMA BULL',s:Math.min(20,ema.score)});
+  if(ema.score<0)factors.push({n:ema.signal==='EMA_BEAR'?'EMA EXIT':'EMA BEAR',s:Math.max(-20,ema.score)});
+  const isAltSymbol=symbol&&symbol!=='BTCUSDT';
+  if(isAltSymbol&&marketFlow&&marketFlow.bias==='ALT_ON')factors.push({n:'ALT FLOW',s:6});
+  if(isAltSymbol&&marketFlow&&marketFlow.bias==='RISK_OFF')factors.push({n:'DOM RISK OFF',s:-8});
   if(liqSweep&&liqSweep.type==='BULL_SWEEP')factors.push({n:'LIQ SWEEP',s:20});
   const nearSR=sr&&sr.find(l=>Math.abs(l.price-price)/price<0.008);
   if(nearSR){
@@ -902,7 +984,7 @@ function calcConfluence(candles,vp,rsi,div,trend,volTier,ms,session,liqSweep,sr,
 }
 
 // 2. HEAT SCORE
-function calcHeat(conf,volTier,div,ms,liqSweep,pattern,stopHunt,adx){let heat=conf>=80?5:conf>=65?4:conf>=50?3:conf>=35?2:1;if(volTier==='SPIKE'&&div==='BULLISH'&&heat<5)heat++;if(ms==='BOS'&&heat<5)heat++;if(liqSweep&&liqSweep.type==='BULL_SWEEP'&&heat<5)heat++;return Math.min(5,heat);}
+function calcHeat(conf,volTier,div,ms,liqSweep,pattern,stopHunt,adx){let heat=conf>=80?5:conf>=65?4:conf>=50?3:conf>=35?2:1;if(volTier==='SPIKE'&&div==='BULLISH'&&heat<5)heat++;if(isBullMS(ms)&&heat<5)heat++;if(liqSweep&&liqSweep.type==='BULL_SWEEP'&&heat<5)heat++;return Math.min(5,heat);}
 function renderHeatBar(heat){const segs=Array.from({length:5},(_,i)=>`<div class="heat-seg heat-${i+1}${i<heat?' on':''}"></div>`).join('');return`<div class="heat-bar">${segs}<span class="heat-score" style="color:var(--heat${heat})">${heat}</span></div>`;}
 
 // 3. FRESHNESS
@@ -1056,7 +1138,7 @@ function pushHistory(signals,ts){scanHistory.unshift({signals:[...signals],ts});
 function renderHistory(){const body=document.getElementById('historyBody');if(!scanHistory.length){body.innerHTML='';return;}body.innerHTML=scanHistory.map((scan,si)=>{const time=new Date(scan.ts).toLocaleTimeString('en-GB');const items=scan.signals.slice(0,12).map(s=>{const isNew=si===0&&!prevSigKeys.has(sigKey(s));const dot=isNew?'<span class="is-new-dot"></span>':'<span class="is-old-dot"></span>';return`<div class="history-sig">${dot}<b>${s.symbol.replace('USDT','')}</b> ${LABEL_MAP[s.type]||s.type} <span style="color:var(--muted)">${s.tf.toUpperCase()}</span> 🔥${s.heat||1}</div>`;}).join('');return`<div class="history-scan"><div class="history-scan-hdr">SCAN ${si+1} — ${time} — ${scan.signals.length} SIGNALS</div>${items}</div>`;}).join('');}
 
 // MARKET STRUCTURE BAR
-function updateMarketStructureBar(signals){const bull=signals.filter(s=>s.ms&&['HH','HL','BOS'].includes(s.ms)).length;const bear=signals.filter(s=>s.ms&&['LL','LH','CHOCH'].includes(s.ms)).length;const el=document.getElementById('marketStruct');if(bull>bear){el.textContent=`↑ BULL (${bull})`;el.className='market-struct BULL';}else if(bear>bull){el.textContent=`↓ BEAR (${bear})`;el.className='market-struct BEAR';}else{el.textContent='→ MIXED';el.className='market-struct NEUTRAL';}}
+function updateMarketStructureBar(signals){const bull=signals.filter(s=>s.ms&&isBullMS(s.ms)).length;const bear=signals.filter(s=>s.ms&&isBearMS(s.ms)).length;const el=document.getElementById('marketStruct');if(bull>bear){el.textContent=`↑ BULL (${bull})`;el.className='market-struct BULL';}else if(bear>bull){el.textContent=`↓ BEAR (${bear})`;el.className='market-struct BEAR';}else{el.textContent='→ MIXED';el.className='market-struct NEUTRAL';}}
 
 // 13. HEATMAP
 function renderHeatmap(){const el=document.getElementById('heatmapView');const sigMap={};allSignals.forEach(s=>{if(!sigMap[s.symbol]||s.heat>sigMap[s.symbol].heat)sigMap[s.symbol]=s;});const pairs=scanPairs().slice(0,80);el.innerHTML=pairs.map(sym=>{const s=sigMap[sym];const lp=livePrices[sym];const chg=lp?lp.chg:(s?s.chg:0);const heat=s?s.heat:0;const chgStr=(chg>=0?'+':'')+chg.toFixed(1)+'%';const chgColor=chg>=0?'var(--acc)':'var(--vah)';const heatColor=heat>=4?'var(--heat5)':heat>=3?'var(--heat3)':heat>=2?'var(--heat2)':heat>0?'var(--heat1)':'var(--border)';const bg=heat?`rgba(${heat>=4?'255,23,68':heat>=3?'255,214,0':heat>=2?'105,240,174':'0,176,255'},.${heat*2})`:'var(--s2)';return`<div class="hm-cell" style="background:${bg};border-color:${s?heatColor:'var(--border)'}" onclick="openChart('${sym}','1h','${s?s.type:'POC'}',${s?JSON.stringify(s.vp).replace(/"/g,"'"):'null'})"><div class="hm-sym">${sym.replace('USDT','')}</div><div class="hm-chg" style="color:${chgColor}">${chgStr}</div>${heat?`<div class="hm-heat" style="background:${heatColor}"></div>`:''}</div>`;}).join('');}
@@ -1064,11 +1146,47 @@ function renderHeatmap(){const el=document.getElementById('heatmapView');const s
 // FETCH
 async function fetchCandles(symbol,interval,limit=120){const url=`${BINANCE}/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`;const res=await fetch(url);const raw=await res.json();if(!Array.isArray(raw))throw new Error('Bad response');return raw.map(k=>({time:parseInt(k[0]),open:parseFloat(k[1]),high:parseFloat(k[2]),low:parseFloat(k[3]),close:parseFloat(k[4]),volume:parseFloat(k[5]),typical:(parseFloat(k[2])+parseFloat(k[3])+parseFloat(k[4]))/3}));}
 
+async function fetchCoinGeckoCaps(path){
+  const res=await fetch(`https://api.coingecko.com/api/v3/${path}`);
+  const data=await res.json();
+  return data.market_caps||data.total_market_caps||data.market_cap_chart?.market_cap||data.market_cap_chart?.market_caps||[];
+}
+function buildDominanceCandles(assetCaps,totalCaps){
+  const totalByDay=new Map(totalCaps.map(([t,v])=>[new Date(t).toISOString().slice(0,10),v]));
+  return assetCaps.map(([t,v])=>{const day=new Date(t).toISOString().slice(0,10),total=totalByDay.get(day);if(!total)return null;const close=(v/total)*100;return{time:t,open:close,high:close,low:close,close,volume:0,typical:close};}).filter(Boolean).slice(-120);
+}
+function renderDominanceFlow(){
+  const el=document.getElementById('domFlow');if(!el)return;
+  el.textContent=dominanceBias.label;
+  el.className='dom-flow '+(dominanceBias.bias==='ALT_ON'?'BULL':dominanceBias.bias==='RISK_OFF'?'BEAR':'NEUTRAL');
+}
+async function updateDominanceFlow(){
+  try{
+    const [btcCaps,usdtCaps,totalCaps]=await Promise.all([
+      fetchCoinGeckoCaps('coins/bitcoin/market_chart?vs_currency=usd&days=120&interval=daily'),
+      fetchCoinGeckoCaps('coins/tether/market_chart?vs_currency=usd&days=120&interval=daily'),
+      fetchCoinGeckoCaps('global/market_cap_chart?vs_currency=usd&days=120')
+    ]);
+    const btcDom=buildDominanceCandles(btcCaps,totalCaps),usdtDom=buildDominanceCandles(usdtCaps,totalCaps);
+    if(btcDom.length<60||usdtDom.length<60)throw new Error('Dominance history unavailable');
+    const btc=detectEMAStrategy(btcDom),usdt=detectEMAStrategy(usdtDom);
+    let bias='NEUTRAL',score=0,label=`BTC.D ${btc.bias} / USDT.D ${usdt.bias}`;
+    if(btc.bias==='BEAR'&&usdt.bias==='BEAR'){bias='ALT_ON';score=6;label='ALT FLOW ON';}
+    else if(usdt.bias==='BULL'||btc.bias==='BULL'){bias='RISK_OFF';score=-8;label='ALT FLOW OFF';}
+    dominanceBias={bias,score,label,btc,usdt,updated:Date.now()};
+  }catch(e){
+    dominanceBias={bias:'UNKNOWN',score:0,label:'DOM: OFF',btc:null,usdt:null,updated:Date.now()};
+  }
+  renderDominanceFlow();
+}
+
 // DETECT SIGNALS (all engines combined)
 function detectSignals(symbol,candles,tf,chg,ts){
   const vp=calcVP(candles.slice(0,-1));if(!vp)return[];
-  const rsiArr=calcRSI(candles),div=checkDiv(candles,rsiArr);
-  const{trend,ema20,ema50}=detectTrend(candles);
+  const rsiArr=calcRSI(candles),divInfo=detectRSIDivergence(candles,rsiArr),div=divInfo?divInfo.type:null;
+  attachEMAs(candles);
+  const trendInfo=detectTrend(candles),{trend,ema5,ema12,ema16,ema40,ema53}=trendInfo;
+  const emaSetup=detectEMAStrategy(candles);
   const{volTier,volRatio}=classifyVol(candles);
   const{ms,label:msLabel}=detectMarketStructure(candles);
   const session=getCurrentSession();
@@ -1082,8 +1200,7 @@ function detectSignals(symbol,candles,tf,chg,ts){
   const volDelta=calcRealDelta(candles);
   const mtfAlign=checkMTFLevelAlignment(symbol);
   const mtfZones=mtfAlign.zones;
-  const ema20arr=calcEMA(candles,20),ema50arr=calcEMA(candles,50);
-  candles.forEach((c,i)=>{c.ema20=ema20arr[i];c.ema50=ema50arr[i];});
+  candles.forEach((c,i)=>{c.rsi=rsiArr[i];});
   const curr=candles.length-1,cur=candles[curr],prev=candles[curr-1];
 
   // Proximity detection (approaching but not yet triggered)
@@ -1094,19 +1211,28 @@ function detectSignals(symbol,candles,tf,chg,ts){
   const makeSig=(bt,type)=>{
     // Skip duplicates within cooldown period
     if(isDuplicateSignal(symbol,type,tf))return null;
-    const conf=calcConfluence(candles,vp,rsiArr,div,trend,volTier,ms,session,liqSweep,sr,obs,pattern,stopHunt,adx,mtfZones);
+    const conf=calcConfluence(candles,vp,rsiArr,div,trend,volTier,ms,session,liqSweep,sr,obs,pattern,stopHunt,adx,mtfZones,dominanceBias,symbol);
     const heat=calcHeat(conf.total,volTier,div,ms,liqSweep,pattern,stopHunt,adx);
-    let str=35;
+    const bearType=type==='EMA_BEAR'||type==='EMA_WARN',isAlt=symbol!=='BTCUSDT';
+    let str=bt==='EMA'?42:35;
     if(bt==='VAL')str+=12;else if(bt==='VAH')str+=10;else if(bt==='POC')str+=8;
-    if(trend==='UP'&&(bt==='VAL'||bt==='POC'))str+=18;
-    else if(trend==='UP'&&bt==='VAH')str+=12;
-    else if(trend==='DOWN'&&bt==='VAH')str+=10;
-    else if(trend==='DOWN')str-=10;
+    if(bt==='EMA')str+=Math.min(28,Math.abs(emaSetup.score));
+    if(bearType){
+      if(trend==='DOWN')str+=18;else if(trend==='UP')str-=8;
+      if(isBearMS(ms))str+=12;if(div==='BEARISH')str+=8;
+      if(isAlt&&dominanceBias.bias==='RISK_OFF')str+=8;if(isAlt&&dominanceBias.bias==='ALT_ON')str-=6;
+    }else{
+      if(trend==='UP'&&(bt==='VAL'||bt==='POC'||bt==='EMA'))str+=18;
+      else if(trend==='UP'&&bt==='VAH')str+=12;
+      else if(trend==='DOWN'&&bt==='VAH')str+=10;
+      else if(trend==='DOWN')str-=10;
+      if(isAlt&&dominanceBias.bias==='ALT_ON')str+=6;if(isAlt&&dominanceBias.bias==='RISK_OFF')str-=8;
+    }
     if(volTier==='SPIKE')str+=18;else if(volTier==='CONFIRMED')str+=10;else if(volTier==='STRONG')str+=5;else str-=5;
-    if(div==='BULLISH')str+=10;if(div==='BEARISH')str-=15;
-    if(['BOS','HH'].includes(ms)&&bt!=='WARNING')str+=8;
-    if(['CHOCH','LL'].includes(ms))str-=8;
-    if(ms==='HL'&&bt!=='WARNING')str+=4;
+    if(div==='BULLISH'&&!bearType)str+=10;if(div==='BEARISH')str+=bearType?10:-15;
+    if(isBullMS(ms)&&bt!=='WARNING'&&!bearType)str+=8;
+    if(isBearMS(ms)&&!bearType)str-=8;
+    if(isBearMS(ms)&&bearType)str+=8;
     if(liqSweep&&liqSweep.type==='BULL_SWEEP')str+=10;
     // NEW bonuses
     if(pattern&&pattern.bullish===true)str+=pattern.score;
@@ -1118,7 +1244,7 @@ function detectSignals(symbol,candles,tf,chg,ts){
     str-=getFalseBreakPenalty(symbol,type,tf);
     str+=Math.round(conf.total*0.12);
     str=Math.min(99,Math.max(15,str));
-    return{symbol,price:cur.close,vp,tf,type,trend,volTier,volRatio,ema20,ema50,chg,
+    return{symbol,price:cur.close,vp,tf,type,trend,volTier,volRatio,ema5,ema12,ema16,ema40,ema53,emaLabel:emaSetup.label,chg,
       strength:str,confluence:conf.total,confluenceFactors:conf.factors,
       heat,ms,msLabel,freshness,session:session.session,
       liqSweep,sr,obs,fvgs,volDelta,
@@ -1156,6 +1282,10 @@ function detectSignals(symbol,candles,tf,chg,ts){
   if(liqSweep&&liqSweep.type==='BULL_SWEEP'&&!sigs.length){
     const s=makeSig('VAL','VAL_SPIKE');
     if(s)sigs.push({...s,heat:Math.min(5,(s.heat||1)+1)});
+  }
+  if(emaSetup.signal){
+    const s=makeSig('EMA',emaSetup.signal);
+    if(s)sigs.push({...s,heat:Math.min(5,(s.heat||1)+(emaSetup.signal==='EMA_BULL'?1:0))});
   }
   return sigs;
 }
@@ -1304,7 +1434,7 @@ async function openChart(symbol,tf,sigType,vp){
   layerState.SR={};layerState.OB={};
   const bl=LABEL_MAP[sigType]||sigType;const badge=document.getElementById('modalBadge');badge.textContent=bl;badge.className=`badge ${sigType||'POC'}`;
   document.getElementById('modalTitle').textContent=symbol;document.getElementById('modalTF').textContent=(tf||'1h').toUpperCase();document.getElementById('modalPriceBig').textContent='—';document.getElementById('modalChange').textContent='—';
-  ['ctxTrend','ctxEMA20','ctxEMA50','ctxVolTier','ctxVolRatio','ctxHeat','ctxMS','ctxOB','ctxLiq','ctxConf'].forEach(id=>document.getElementById(id).textContent='—');
+  ['ctxTrend','ctxEMA5','ctxEMA12','ctxEMA53','ctxVolTier','ctxVolRatio','ctxHeat','ctxMS','ctxOB','ctxLiq','ctxConf'].forEach(id=>document.getElementById(id).textContent='—');
   document.querySelectorAll('.modal-tf-btn').forEach(b=>b.classList.toggle('on',b.dataset.tf===(tf||'1h')));
   document.getElementById('modalOverlay').classList.add('open');document.getElementById('chartLoadingState').style.display='flex';document.getElementById('chartContainer').style.display='none';document.getElementById('chartInfoBar').style.display='none';
   document.getElementById('modalNote').value=tradeNotes[symbol]||'';
@@ -1314,23 +1444,23 @@ async function openChart(symbol,tf,sigType,vp){
 async function loadChartData(symbol,tf,vpHint){
   try{
     const candles=await fetchCandles(symbol,tf,120);const vp=calcVP(candles)||vpHint;if(!vp)throw new Error('No VP');
-    const rsiVals=calcRSI(candles),ema20arr=calcEMA(candles,20),ema50arr=calcEMA(candles,50);
-    const{trend}=detectTrend(candles);const{volTier,volRatio}=classifyVol(candles);const div=checkDiv(candles,rsiVals);
+    const rsiVals=calcRSI(candles);attachEMAs(candles);
+    const trendInfo=detectTrend(candles),{trend}=trendInfo;const{volTier,volRatio}=classifyVol(candles);const divInfo=detectRSIDivergence(candles,rsiVals),div=divInfo?divInfo.type:null;
     const{ms,label:msLabel}=detectMarketStructure(candles);const session=getCurrentSession();
     const liqSweep=detectLiquiditySweep(candles);const sr=detectSR(candles);const obs=detectOrderblocks(candles);
-    const conf=calcConfluence(candles,vp,rsiVals,div,trend,volTier,ms,session,liqSweep,sr,obs);
+    const conf=calcConfluence(candles,vp,rsiVals,div,trend,volTier,ms,session,liqSweep,sr,obs,null,null,null,null,dominanceBias,symbol);
     const heat=calcHeat(conf.total,volTier,div,ms,liqSweep);
-    candles.forEach((c,i)=>{c.rsi=rsiVals[i];c.ema20=ema20arr[i];c.ema50=ema50arr[i];});
+    candles.forEach((c,i)=>{c.rsi=rsiVals[i];});
     const last=candles[candles.length-1],first=candles[0];const change=((last.close-first.open)/first.open*100).toFixed(2);
     const chEl=document.getElementById('modalChange');document.getElementById('modalPriceBig').textContent='$'+fp(last.close);chEl.textContent=(change>=0?'+':'')+change+'%';chEl.className='modal-change '+(change>=0?'up':'dn');
     document.getElementById('infoVAH').textContent='$'+fp(vp.vah);document.getElementById('infoPOC').textContent='$'+fp(vp.poc);document.getElementById('infoVAL').textContent='$'+fp(vp.val);
     const dist=((last.close-vp.poc)/vp.poc*100).toFixed(2);document.getElementById('infoDist').textContent=(dist>=0?'+':'')+dist+'%';
     document.getElementById('ctxTrend').textContent=trend==='UP'?'↑ TREND':trend==='DOWN'?'↓ COUNTER':'→ NEUT';
-    document.getElementById('ctxEMA20').textContent='$'+fp(last.ema20);document.getElementById('ctxEMA50').textContent='$'+fp(last.ema50);
+    document.getElementById('ctxEMA5').textContent='$'+fp(last.ema5);document.getElementById('ctxEMA12').textContent='$'+fp(last.ema12);document.getElementById('ctxEMA53').textContent='$'+fp(last.ema53);
     document.getElementById('ctxVolTier').textContent=volTier;document.getElementById('ctxVolRatio').textContent=volRatio.toFixed(2)+'x';
     document.getElementById('ctxHeat').textContent='🔥'.repeat(heat)+` (${conf.total}/100)`;document.getElementById('ctxMS').textContent=msLabel||'—';
     document.getElementById('ctxOB').textContent=obs.length?obs.map(o=>o.type).join(','):'NONE';document.getElementById('ctxLiq').textContent=liqSweep?liqSweep.label:'NONE';document.getElementById('ctxConf').textContent=conf.total+'/100';
-    const tEl=document.getElementById('infoTrend');tEl.textContent=trend==='UP'?'↑ UPTREND':trend==='DOWN'?'↓ DOWNTREND':'→ NEUTRAL';tEl.className='info-val '+(trend==='UP'?'trend-up':trend==='DOWN'?'trend-dn':'trend-n');
+    const tEl=document.getElementById('infoTrend');tEl.textContent=trend==='UP'?'↑ '+(trendInfo.label||'UPTREND'):trend==='DOWN'?'↓ '+(trendInfo.label||'DOWNTREND'):'→ NEUTRAL';tEl.className='info-val '+(trend==='UP'?'trend-up':trend==='DOWN'?'trend-dn':'trend-n');
     const rr=calcRR(last.close,vp,currentSigType||'POC');
     document.getElementById('rrEntry').textContent='$'+fp(rr.entry);document.getElementById('rrStop').textContent='$'+fp(rr.stop);document.getElementById('rrT1').textContent='$'+fp(rr.t1);document.getElementById('rrT2').textContent='$'+fp(rr.t2);
     const rrEl=document.getElementById('rrRatio');rrEl.textContent='1:'+rr.rr;rrEl.className='rr-item-val '+(parseFloat(rr.rr)>=2?'rr-g':parseFloat(rr.rr)>=1?'rr-m':'rr-b');document.getElementById('rrRisk').textContent=rr.riskPct+'%';
@@ -1348,7 +1478,7 @@ function destroyAllCharts(){if(mainChartObj){mainChartObj.remove();mainChartObj=
 // Persists across TF switches within same modal session
 let layerState = {
   VAH:true, POC:true, VAL:true,
-  EMA20:true, EMA50:true,
+  EMA5:true, EMA12:true, EMA16:true, EMA40:true, EMA53:true,
   VOL:true, RSI:true,
   SR:{}, OB:{}
 };
@@ -1383,8 +1513,7 @@ function renderLayerToolbar(){
   html+=btn('POC','#FFD700',layerState.POC,"toggleLyr('POC')");
   html+=btn('VAL','#00FFB2',layerState.VAL,"toggleLyr('VAL')");
   html+='<span style="color:#1E3A55;margin:0 2px">│</span>';
-  html+=btn('EMA20','#FF9500',layerState.EMA20,"toggleLyr('EMA20')");
-  html+=btn('EMA50','#BF5FFF',layerState.EMA50,"toggleLyr('EMA50')");
+  EMA_STRATEGY.forEach(cfg=>{html+=btn(cfg.label,cfg.color,layerState[cfg.key],`toggleLyr('${cfg.key}')`);});
   if(_srList.length){
     html+='<span style="color:#1E3A55;margin:0 2px">│</span>';
     _srList.forEach((l,i)=>{
@@ -1509,7 +1638,8 @@ function toggleOB(idx){
 // ── Reset all ─────────────────────────────────────
 function resetAllLayers(){
   layerState.VAH=true;layerState.POC=true;layerState.VAL=true;
-  layerState.EMA20=true;layerState.EMA50=true;layerState.VOL=true;layerState.RSI=true;
+  EMA_STRATEGY.forEach(cfg=>layerState[cfg.key]=true);
+  layerState.VOL=true;layerState.RSI=true;
   Object.keys(layerState.SR).forEach(k=>layerState.SR[k]=true);
   Object.keys(layerState.OB).forEach(k=>layerState.OB[k]=true);
   loadChartData(currentSymbol,currentTF,null);
@@ -1638,29 +1768,24 @@ function buildLWChart(candles,vp,sr,obs){
     });
   }
 
-  // ── EMA lines ─────────────────────────────────────
-  const e20d=candles.filter(c=>c.ema20>0).map(c=>({time:Math.floor(c.time/1000),value:c.ema20}));
-  const e50d=candles.filter(c=>c.ema50>0).map(c=>({time:Math.floor(c.time/1000),value:c.ema50}));
-  if(e20d.length){
-    const opts={color:'#FF9500',lineWidth:1.5,lineStyle:LightweightCharts.LineStyle.Solid,
-      title:'EMA20',priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false,
-      visible:layerState.EMA20,priceFormat:{type:'price',precision:DEC,minMove:MM}};
-    const s=mainChartObj.addLineSeries(opts);s.setData(e20d);
-    layerDefs.EMA20=s;layerDefs.EMA20_opts={opts:{...opts,visible:true},data:e20d};
-  }
-  if(e50d.length){
-    const opts={color:'#BF5FFF',lineWidth:1.5,lineStyle:LightweightCharts.LineStyle.Solid,
-      title:'EMA50',priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false,
-      visible:layerState.EMA50,priceFormat:{type:'price',precision:DEC,minMove:MM}};
-    const s=mainChartObj.addLineSeries(opts);s.setData(e50d);
-    layerDefs.EMA50=s;layerDefs.EMA50_opts={opts:{...opts,visible:true},data:e50d};
-  }
+  // ── EMA strategy lines ────────────────────────────
+  EMA_STRATEGY.forEach(cfg=>{
+    const data=candles.filter(c=>c[cfg.prop]>0).map(c=>({time:Math.floor(c.time/1000),value:c[cfg.prop]}));
+    if(!data.length)return;
+    const opts={color:cfg.color,lineWidth:cfg.key==='EMA53'?2:1.5,lineStyle:LightweightCharts.LineStyle.Solid,
+      title:cfg.label,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false,
+      visible:layerState[cfg.key],priceFormat:{type:'price',precision:DEC,minMove:MM}};
+    const s=mainChartObj.addLineSeries(opts);s.setData(data);
+    layerDefs[cfg.key]=s;layerDefs[cfg.key+'_opts']={opts:{...opts,visible:true},data};
+  });
 
   // ── Signal marker ──────────────────────────────────
   const last2=lwC[lwC.length-1];
-  const sc=currentSigType&&currentSigType.startsWith('VAH')?'#FF5E3A':currentSigType&&currentSigType.startsWith('VAL')?'#00FFB2':'#FFD700';
-  const ss2=currentSigType&&currentSigType.startsWith('VAH')?'arrowUp':currentSigType&&currentSigType.startsWith('VAL')?'arrowDown':'circle';
-  const sp=currentSigType&&currentSigType.startsWith('VAH')?'belowBar':'aboveBar';
+  let sc='#FFD700',ss2='circle',sp='aboveBar';
+  if(currentSigType&&currentSigType.startsWith('VAH')){sc='#FF5E3A';ss2='arrowUp';sp='belowBar';}
+  else if(currentSigType&&currentSigType.startsWith('VAL')){sc='#00FFB2';ss2='arrowDown';sp='aboveBar';}
+  else if(currentSigType==='EMA_BULL'){sc='#FFD600';ss2='arrowUp';sp='belowBar';}
+  else if(currentSigType==='EMA_WARN'||currentSigType==='EMA_BEAR'){sc='#FF3B30';ss2='arrowDown';sp='aboveBar';}
   if(currentSigType) candleSeries.setMarkers([{time:last2.time,position:sp,color:sc,shape:ss2,text:currentSigType,size:2}]);
 
   // ── Crosshair tooltip (full precision) ───────────
@@ -1705,6 +1830,17 @@ function buildLWChart(candles,vp,sr,obs){
   const rsiOs=rsiChartObj.addLineSeries({color:'rgba(0,255,178,0.5)',lineWidth:1,
     lineStyle:LightweightCharts.LineStyle.Dashed,lastValueVisible:true,title:'OS',priceScaleId:''});
   rsiOs.setData(lwC.map(c=>({time:c.time,value:30})));
+  const divInfo=detectRSIDivergence(candles,candles.map(c=>c.rsi||50));
+  if(divInfo){
+    const divColor=divInfo.type==='BULLISH'?'#00FFB2':'#FF5E3A';
+    const divTitle=divInfo.type==='BULLISH'?'BULL DIV':'BEAR DIV';
+    const priceData=[divInfo.p1,divInfo.p2].map(p=>({time:Math.floor(candles[p.idx].time/1000),value:p.price}));
+    const rsiData=[{time:Math.floor(candles[divInfo.p1.idx].time/1000),value:divInfo.r1},{time:Math.floor(candles[divInfo.p2.idx].time/1000),value:divInfo.r2}];
+    const priceDiv=mainChartObj.addLineSeries({color:divColor,lineWidth:2,lineStyle:LightweightCharts.LineStyle.Dashed,title:divTitle,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false,priceFormat:{type:'price',precision:DEC,minMove:MM}});
+    priceDiv.setData(priceData);
+    const rsiDiv=rsiChartObj.addLineSeries({color:divColor,lineWidth:2,lineStyle:LightweightCharts.LineStyle.Dashed,title:divTitle,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false,priceScaleId:''});
+    rsiDiv.setData(rsiData);
+  }
 
   // ── Sync timescales ───────────────────────────────
   mainChartObj.timeScale().subscribeVisibleLogicalRangeChange(range=>{
@@ -1760,7 +1896,7 @@ window.addEventListener('DOMContentLoaded',()=>{
   if(tgT)document.getElementById('tgToken').value=tgT;if(tgC)document.getElementById('tgChat').value=tgC;
   document.getElementById('warnBtn').style.opacity='0.45';document.getElementById('mtfBtn').style.opacity='0.45';
   renderGroupsPanel();renderWatchlist();renderAlerts();
-  updateSessionBar();setInterval(updateSessionBar,30000);
+  updateSessionBar();setInterval(updateSessionBar,30000);updateDominanceFlow();setInterval(updateDominanceFlow,4*60*60*1000);
   startWebSocket();triggerAndPoll();setInterval(triggerAndPoll,30*60*1000);
   if(Notification.permission==='default')Notification.requestPermission();
 });
