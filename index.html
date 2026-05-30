@@ -897,11 +897,6 @@ function isDuplicateSignal(sym,type,tf){
   signalCooldown.set(key,now);return false;
 }
 
-// ══ BTC + USDT DOMINANCE MONITOR ══
-// Uses same 5/12/53 EMA strategy on BTC.D and USDT.D
-// BTC.D rising = money going into BTC = bad for alts
-// USDT.D rising = money leaving crypto = bad for everything
-// We approximate using BTCUSDT price trend as BTC.D proxy
 // ══════════════════════════════════════════════════════════════════
 //  REAL BTC.D + USDT.D — from CoinGecko Global API (free, no key)
 //  This gives the EXACT same numbers as TradingView BTC.D chart
