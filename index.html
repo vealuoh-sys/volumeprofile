@@ -1720,6 +1720,7 @@ function destroyAllCharts(){if(mainChartObj){mainChartObj.remove();mainChartObj=
 // Persists across TF switches within same modal session
 let layerState = {
   VAH:true, POC:true, VAL:true,
+  EMA5:true, EMA12:true, EMA16:true, EMA40:false, EMA53:true,
   EMA20:true, EMA50:true,
   VOL:true, RSI:true,
   SR:{}, OB:{}
@@ -1755,16 +1756,11 @@ function renderLayerToolbar(){
   html+=btn('POC','#FFD700',layerState.POC,"toggleLyr('POC')");
   html+=btn('VAL','#00FFB2',layerState.VAL,"toggleLyr('VAL')");
   html+='<span style="color:#1E3A55;margin:0 2px">│</span>';
-  if(layerState.EMA5===undefined)layerState.EMA5=true;
-  if(layerState.EMA12===undefined)layerState.EMA12=true;
-  if(layerState.EMA16===undefined)layerState.EMA16=true;
-  if(layerState.EMA40===undefined)layerState.EMA40=false; // blue optional, off by default
-  if(layerState.EMA53===undefined)layerState.EMA53=true;
-  html+=btn('MA5 Y','#FFD700',layerState.EMA5,"toggleLyr('EMA5')");
-  html+=btn('MA12 R','#FF3333',layerState.EMA12,"toggleLyr('EMA12')");
-  html+=btn('MA16 O','#FF9500',layerState.EMA16,"toggleLyr('EMA16')");
-  html+=btn('MA40 B','#4488FF',layerState.EMA40,"toggleLyr('EMA40')");
-  html+=btn('MA53 W','#EEEEEE',layerState.EMA53,"toggleLyr('EMA53')");
+  html+=btn('MA5','#FFD700',layerState.EMA5,"toggleLyr('EMA5')");
+  html+=btn('MA12','#FF3333',layerState.EMA12,"toggleLyr('EMA12')");
+  html+=btn('MA16','#FF9500',layerState.EMA16,"toggleLyr('EMA16')");
+  html+=btn('MA40','#4488FF',layerState.EMA40,"toggleLyr('EMA40')");
+  html+=btn('MA53','#EEEEEE',layerState.EMA53,"toggleLyr('EMA53')");
   if(_srList.length){
     html+='<span style="color:#1E3A55;margin:0 2px">│</span>';
     _srList.forEach((l,i)=>{
@@ -2218,30 +2214,6 @@ function buildLWChart(candles,vp,sr,obs){
   // ── Render toolbar ────────────────────────────────
   renderLayerToolbar();
 }
-
-// ── Auto-detect decimal precision from price ──────
-function getPriceDecimals(price){
-  if(!price||price<=0) return 6;
-  if(price>=1000)  return 2;
-  if(price>=100)   return 3;
-  if(price>=10)    return 4;
-  if(price>=1)     return 4;
-  if(price>=0.1)   return 5;
-  if(price>=0.01)  return 6;
-  if(price>=0.001) return 7;
-  if(price>=0.0001)return 8;
-  return 10;
-}
-function getMinMove(price){
-  const d = getPriceDecimals(price);
-  return parseFloat((1/Math.pow(10,d)).toFixed(d));
-}
-function fmtPrice(p){
-  if(!p&&p!==0) return '—';
-  const d = getPriceDecimals(p);
-  return p.toFixed(d);
-}
-
 
 function switchModalTF(btn){document.querySelectorAll('.modal-tf-btn').forEach(b=>b.classList.remove('on'));btn.classList.add('on');currentTF=btn.dataset.tf;document.getElementById('modalTF').textContent=currentTF.toUpperCase();document.getElementById('chartLoadingState').style.display='flex';document.getElementById('chartLoadingState').innerHTML='<div>LOADING…</div><div class="loading-bar"><div class="loading-bar-inner"></div></div>';document.getElementById('chartContainer').style.display='none';document.getElementById('chartInfoBar').style.display='none';loadChartData(currentSymbol,currentTF,null);}
 function closeModal(){document.getElementById('modalOverlay').classList.remove('open');destroyAllCharts();}
