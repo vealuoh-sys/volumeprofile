@@ -300,8 +300,8 @@ footer{margin-top:18px;padding-top:10px;border-top:1px solid var(--border);displ
 #modalNote:focus{border-color:var(--acc2);}
 .note-save-btn{background:transparent;border:1px solid var(--acc2);color:var(--acc2);font-family:'Space Mono',monospace;font-size:.52rem;padding:3px 8px;cursor:pointer;}
 .modal-body{flex:1;overflow:hidden;display:flex;flex-direction:column;min-height:0;}
-.chart-container{flex:1;display:flex;min-height:0;}
-.main-chart-wrap{flex:1;display:flex;flex-direction:column;min-width:0;border-right:1px solid var(--border);}
+.chart-container{flex:1;display:flex;flex-direction:column;min-height:0;}
+.main-chart-wrap{flex:1;display:flex;flex-direction:column;min-width:0;border-right:1px solid var(--border);overflow:visible;}
 #mainChart{flex:1;min-height:0;position:relative;}
 #volChart{height:62px;border-top:1px solid var(--border);}
 #rsiChart{height:80px;border-top:1px solid var(--border);}
@@ -537,7 +537,7 @@ footer{margin-top:18px;padding-top:10px;border-top:1px solid var(--border);displ
       <div id="chartLoadingState" class="chart-loading" style="flex:1;"><div>LOADING…</div><div class="loading-bar"><div class="loading-bar-inner"></div></div></div>
       <div class="chart-container" id="chartContainer" style="display:none;flex-direction:column;">
         <div id="layerToolbar"></div>
-        <div style="display:flex;flex:1;min-height:0;">
+        <div style="display:flex;flex:1;min-height:0;overflow:visible;align-items:flex-start;">
         <div class="main-chart-wrap">
           <div id="mainChart" style="position:relative;">
             <div class="chart-tooltip" id="chartTooltip">
@@ -1912,7 +1912,9 @@ function buildLWChart(candles,vp,sr,obs){
   _srList=sr||[];_obList=obs||[];
 
   const mainEl=document.getElementById('mainChart');
-  const mainH=Math.max(240,window.innerHeight*.35);
+  const VOL_H=62, RSI_H=80, TOOLBAR_H=30;
+  const availH=Math.max(420, window.innerHeight*.72);
+  const mainH=Math.max(220, availH - VOL_H - RSI_H - TOOLBAR_H);
   const vpW=window.innerWidth>700?108:0;
   const mainW=Math.max(270,Math.floor(window.innerWidth*.95-vpW-16));
   mainEl.style.height=mainH+'px';
