@@ -1919,7 +1919,9 @@ function buildLWChart(candles,vp,sr,obs){
   const common={
     layout:{background:{color:'#080F18'},textColor:'#3A6880',fontFamily:"'Space Mono',monospace",fontSize:9},
     rightPriceScale:{borderColor:'#132435',textColor:'#3A6880'},
-    timeScale:{visible:false},handleScroll:false,handleScale:false
+    timeScale:{visible:false},
+    handleScroll:{mouseWheel:false,pressedMouseMove:false,horzTouchDrag:false,vertTouchDrag:false},
+    handleScale:{mouseWheel:false,pinch:false,axisPressedMouseMove:false}
   };
 
   mainChartObj=LightweightCharts.createChart(mainEl,{
@@ -2096,29 +2098,55 @@ function buildLWChart(candles,vp,sr,obs){
 
   // ── Volume chart ──────────────────────────────────
   volChartObj=LightweightCharts.createChart(volEl,{
-    ...common,width:mainW,height:62,
+    width:mainW,height:62,
+    layout:{background:{color:'#080F18'},textColor:'#3A6880',fontFamily:"'Space Mono',monospace",fontSize:8},
     grid:{vertLines:{color:'rgba(19,36,53,0.4)'},horzLines:{visible:false}},
-    rightPriceScale:{...common.rightPriceScale,scaleMargins:{top:.1,bottom:0}},
-    crosshair:{horzLine:{visible:false},vertLine:{color:'rgba(0,191,255,0.3)'}}
+    rightPriceScale:{borderColor:'#132435',textColor:'#3A6880',scaleMargins:{top:0.1,bottom:0}},
+    leftPriceScale:{visible:false},
+    timeScale:{visible:false,borderColor:'#132435'},
+    crosshair:{horzLine:{visible:false},vertLine:{color:'rgba(0,191,255,0.3)',labelVisible:false}},
+    handleScroll:{mouseWheel:false,pressedMouseMove:false,horzTouchDrag:false,vertTouchDrag:false},
+    handleScale:{mouseWheel:false,pinch:false,axisPressedMouseMove:false}
   });
-  const vs=volChartObj.addHistogramSeries({priceFormat:{type:'volume'},priceScaleId:'right'});
-  vs.setData(candles.map(c=>({time:Math.floor(c.time/1000),value:c.volume,
-    color:c.close>=c.open?'rgba(0,255,178,0.4)':'rgba(255,94,58,0.35)'})));
+  const vs=volChartObj.addHistogramSeries({
+    priceFormat:{type:'volume'},
+    priceScaleId:'right',
+    lastValueVisible:false,
+    priceLineVisible:false
+  });
+  vs.setData(candles.map(c=>({
+    time:Math.floor(c.time/1000),
+    value:c.volume,
+    color:c.close>=c.open?'rgba(0,255,178,0.45)':'rgba(255,94,58,0.35)'
+  })));
 
   // ── RSI chart ─────────────────────────────────────
   rsiChartObj=LightweightCharts.createChart(rsiEl,{
-    ...common,width:mainW,height:80,
-    grid:{vertLines:{color:'rgba(19,36,53,0.4)'},horzLines:{color:'rgba(19,36,53,0.4)'}},
-    rightPriceScale:{...common.rightPriceScale,scaleMargins:{top:.1,bottom:.1}}
+    width:mainW,height:80,
+    layout:{background:{color:'#080F18'},textColor:'#3A6880',fontFamily:"'Space Mono',monospace",fontSize:8},
+    grid:{vertLines:{color:'rgba(19,36,53,0.4)'},horzLines:{color:'rgba(19,36,53,0.25)'}},
+    rightPriceScale:{borderColor:'#132435',textColor:'#3A6880',scaleMargins:{top:0.1,bottom:0.1}},
+    leftPriceScale:{visible:false},
+    timeScale:{visible:false,borderColor:'#132435'},
+    crosshair:{horzLine:{visible:false},vertLine:{color:'rgba(0,191,255,0.3)',labelVisible:false}},
+    handleScroll:{mouseWheel:false,pressedMouseMove:false,horzTouchDrag:false,vertTouchDrag:false},
+    handleScale:{mouseWheel:false,pinch:false,axisPressedMouseMove:false}
   });
-  const rs=rsiChartObj.addLineSeries({color:'#CF9FFF',lineWidth:2,priceScaleId:'right'});
-  const rsiData=candles.map(c=>({time:Math.floor(c.time/1000),value:c.rsi||50}));
-  rs.setData(rsiData);
+  const rs=rsiChartObj.addLineSeries({
+    color:'#CF9FFF',lineWidth:2,
+    priceScaleId:'right',
+    lastValueVisible:true,
+    priceLineVisible:false,
+    crosshairMarkerVisible:true
+  });
+  rs.setData(candles.map(c=>({time:Math.floor(c.time/1000),value:c.rsi||50})));
   const rsiOb=rsiChartObj.addLineSeries({color:'rgba(255,94,58,0.5)',lineWidth:1,
-    lineStyle:LightweightCharts.LineStyle.Dashed,lastValueVisible:true,title:'OB',priceScaleId:'right'});
+    lineStyle:LightweightCharts.LineStyle.Dashed,lastValueVisible:true,title:'OB',
+    priceScaleId:'right',priceLineVisible:false});
   rsiOb.setData(lwC.map(c=>({time:c.time,value:70})));
   const rsiOs=rsiChartObj.addLineSeries({color:'rgba(0,255,178,0.5)',lineWidth:1,
-    lineStyle:LightweightCharts.LineStyle.Dashed,lastValueVisible:true,title:'OS',priceScaleId:'right'});
+    lineStyle:LightweightCharts.LineStyle.Dashed,lastValueVisible:true,title:'OS',
+    priceScaleId:'right',priceLineVisible:false});
   rsiOs.setData(lwC.map(c=>({time:c.time,value:30})));
 
   // ── DRAW RSI DIVERGENCE LINES ──────────────────────────────────
