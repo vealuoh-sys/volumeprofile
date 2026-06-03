@@ -186,6 +186,8 @@ header{display:flex;align-items:center;justify-content:space-between;padding:16p
 .badge.POC{background:rgba(255,215,0,.07);color:var(--poc);border:1px solid rgba(255,215,0,.22);}
 .badge.POC_DIV{background:rgba(255,215,0,.18);color:#FFE55C;border:2px solid var(--poc);font-weight:900;}
 .badge.POC_SPIKE{background:rgba(255,215,0,.18);color:#FFE55C;border:2px solid var(--poc);font-weight:900;}
+.badge.EMA_EARLY{background:rgba(255,215,0,.12);color:#FFD700;border:2px solid rgba(255,215,0,.6);font-weight:900;animation:pulse 1.5s infinite;}
+.badge.EMA_BULL{background:rgba(0,255,178,.12);color:#00FFB2;border:2px solid rgba(0,255,178,.6);font-weight:900;}
 .badge.WARNING{background:rgba(255,94,58,.12);color:#ff5e3a;border:1px dashed #ff5e3a;animation:pulse 2s infinite;}
 .badge.NEW-TAG{background:rgba(0,255,178,.15);color:var(--acc);border:1px solid var(--acc);font-size:.44rem;padding:1px 4px;}
 .badge.MTF-TAG{background:rgba(124,77,255,.15);color:#BF5FFF;border:1px solid rgba(124,77,255,.4);font-size:.44rem;padding:1px 4px;}
@@ -612,7 +614,11 @@ const DEFAULT_PAIRS=[
   'VINEUSDT','CHILLGUYUSDT','NEIROUSDT','MOODENGUSDT','GOATUSDT','TRUMPUSDT','MELANIAUSDT','FARTCOINUSDT','DEGOUSDT','LPTUSDT',
   'AEVOUSDT','OMNIUSDT','SAGAUSDT','VANRYUSDT','ETHFIUSDT','XAIUSDT','MANTAUSDT','FRONTUSDT','NFPUSDT','AIUSDT',
   'WOOUSDT','SFPUSDT','BANDUSDT','OCEANUSDT','LRCUSDT','STORJUSDT','ANKRUSDT','BATUSDT','CHZUSDT','ENJUSDT',
-  'ONTUSDT','ZECUSDT','DASHUSDT','QTUMUSDT','IOSTUSDT','RVNUSDT','ZILUSDT','HOTUSDT','ICPUSDT','SONICUSDT'
+  'ONTUSDT','ZECUSDT','DASHUSDT','QTUMUSDT','IOSTUSDT','RVNUSDT','ZILUSDT','HOTUSDT','SONICUSDT','VIRTUALUSDT',
+  'AKTUSDT','TAIKOUSDT','WBTCUSDT','ZKSYNCUSDT','BRETTUSDT','MPCUSDT','TOKENUSDT','NXPCUSDT','IQUSDT','SNTUSDT',
+  'KNCUSDT','OXTUSDT','NMRUSDT','GLMRUSDT','IOTXUSDT','CELOUSDT','CTSIUSDT','ALICEUSDT','COTIUSDT','MDTUSDT',
+  'RADUSDT','PONDUSDT','VOXELUSDT','JASMYUSDT','BICOUSDT','SLPUSDT','CVCUSDT','POWRUSDT','REQUSDT','XVSUSDT',
+  'ALPACAUSDT','ATAUSDT','AUDUSDT','AUTOMUSDT','CLVUSDT','COSUSDT','CVXUSDT','DOCKUSDT','FITFIUSDT','FOCUSDT'
 ];
 
 // STATE
@@ -627,10 +633,20 @@ let mainChartObj=null,volChartObj=null,rsiChartObj=null,candleSeries=null;
 const LABEL_MAP={
   VAH:'▲ VAH BREAK',VAH_SPIKE:'▲ VAH+SPIKE',VAL:'▼ VAL RECLAIM',
   VAL_DIV:'▼ VAL+DIV',VAL_SPIKE:'▼ VAL+SPIKE',POC:'◆ POC REACT',
-  POC_DIV:'◆ POC+DIV',POC_SPIKE:'◆ POC+SPIKE',WARNING:'⚠ VAH FAKEOUT'
+  POC_DIV:'◆ POC+DIV',POC_SPIKE:'◆ POC+SPIKE',WARNING:'⚠ VAH FAKEOUT',
+  EMA_EARLY:'⚡ EMA5 CROSS',EMA_BULL:'✅ EMA BULL CONF'
 };
-function baseType(t){return t.startsWith('VAH')?'VAH':t.startsWith('VAL')?'VAL':t.startsWith('POC')?'POC':t;}
+function baseType(t){return t.startsWith('VAH')?'VAH':t.startsWith('VAL')?'VAL':t.startsWith('POC')?'POC':t.startsWith('EMA')?'EMA':t;}
 function sigKey(s){return`${s.symbol}-${s.type}-${s.tf}`;}
+// Render-level dedup: keep only the highest-strength signal per symbol+TF
+function dedupBySymbolTF(signals){
+  const map=new Map();
+  signals.forEach(s=>{
+    const key=`${s.symbol}-${s.tf}`;
+    if(!map.has(key)||s.strength>map.get(key).strength) map.set(key,s);
+  });
+  return Array.from(map.values());
+}
 function fp(p){if(!p&&p!==0)return'—';if(p>=10000)return p.toLocaleString('en',{maximumFractionDigits:1});if(p>=1)return p.toFixed(4);return p.toFixed(6);}
 function scanPairs(){return activeGroup?coinGroups.find(g=>g.name===activeGroup)?.coins||DEFAULT_PAIRS:DEFAULT_PAIRS;}
 
@@ -1441,6 +1457,49 @@ function detectSignals(symbol,candles,tf,chg,ts){
     const s=makeSig('VAL','VAL_SPIKE');
     if(s)sigs.push({...s,heat:Math.min(5,(s.heat||1)+1)});
   }
+
+  // ── EMA EARLY SIGNAL: 5 EMA just crossed above 53 EMA ────────────
+  // This fires BEFORE VAH/VAL/POC, giving an early warning
+  if(crossBullish5&&!sigs.length){
+    if(!isDuplicateSignal(symbol,'EMA_EARLY',tf)){
+      const conf=calcConfluence(candles,vp,rsiArr,div,trend,volTier,ms,session,liqSweep,sr,obs,pattern,stopHunt,adx,mtfZones);
+      const heat=calcHeat(conf.total,volTier,div,ms,liqSweep,pattern,stopHunt,adx);
+      let str=50+Math.round(conf.total*0.1);
+      if(volTier==='SPIKE')str+=15;else if(volTier==='CONFIRMED')str+=8;
+      if(['BOS','HH'].includes(ms))str+=10;
+      if(mtfZones&&mtfZones.length>0)str+=12;
+      str=Math.min(90,Math.max(30,str));
+      sigs.push({symbol,price:cur.close,vp,tf,type:'EMA_EARLY',trend:'UP',volTier,volRatio,
+        ema5,ema12,ema16,ema53,ema20,ema50,crossBullish5:true,crossBullish12:false,
+        crossBearish5:false,crossBearish12:false,earlyWarning:false,fullBullConfirm:false,fullBearConfirm:false,
+        chg,strength:str,confluence:conf.total,confluenceFactors:conf.factors,
+        heat,ms,msLabel,freshness,session:session.session,
+        liqSweep,sr,obs,fvgs,volDelta,
+        pattern:pattern?pattern.pattern:null,stopHunt,adx,mtfZones,
+        ts:ts||Date.now()});
+    }
+  }
+  // ── EMA BULL CONFIRM: 12 EMA crossed above 53 EMA ────────────────
+  if(crossBullish12&&!sigs.some(s=>s.type==='EMA_BULL')){
+    if(!isDuplicateSignal(symbol,'EMA_BULL',tf)){
+      const conf=calcConfluence(candles,vp,rsiArr,div,trend,volTier,ms,session,liqSweep,sr,obs,pattern,stopHunt,adx,mtfZones);
+      const heat=calcHeat(conf.total,volTier,div,ms,liqSweep,pattern,stopHunt,adx);
+      let str=60+Math.round(conf.total*0.12);
+      if(volTier==='SPIKE')str+=18;else if(volTier==='CONFIRMED')str+=10;
+      if(['BOS','HH'].includes(ms))str+=12;
+      if(mtfZones&&mtfZones.length>0)str+=12;
+      str=Math.min(95,Math.max(40,str));
+      sigs.push({symbol,price:cur.close,vp,tf,type:'EMA_BULL',trend:'UP',volTier,volRatio,
+        ema5,ema12,ema16,ema53,ema20,ema50,crossBullish5:false,crossBullish12:true,
+        crossBearish5:false,crossBearish12:false,earlyWarning:false,fullBullConfirm:true,fullBearConfirm:false,
+        chg,strength:str,confluence:conf.total,confluenceFactors:conf.factors,
+        heat,ms,msLabel,freshness,session:session.session,
+        liqSweep,sr,obs,fvgs,volDelta,
+        pattern:pattern?pattern.pattern:null,stopHunt,adx,mtfZones,
+        ts:ts||Date.now()});
+    }
+  }
+
   return sigs;
 }
 
@@ -1501,7 +1560,9 @@ async function triggerAndPoll(){
   }
 
   const scanStartTs=Date.now();
-  const BATCH=12; // 12 coins × 3 TFs = 36 parallel requests per batch — fast but safe
+  const BATCH=20; // 20 coins × 3 TFs = 60 parallel requests per batch — faster
+  // Binance free tier: 1200 weight/min, each klines request = 1 weight
+  // 20 coins × 3 TFs = 60 req/batch; 80ms gap → ~12 batches/10s = 720 req/10s = well under limit
 
   for(let i=0;i<pairs.length;i+=BATCH){
     const batch=pairs.slice(i,i+BATCH);
@@ -1510,10 +1571,7 @@ async function triggerAndPoll(){
     done+=batch.length;
     pfg.style.width=Math.round((done/pairs.length)*100)+'%';
     ptxt.textContent=`SCANNING… ${done} / ${pairs.length} COINS`;
-    // Short pause between batches to stay within Binance rate limits
-    // Binance allows 1200 weight/min. 24 requests × 1 weight = 24/batch.
-    // 150ms gap = ~160 batches/min max = 3840 requests/min → well under limit
-    if(i+BATCH<pairs.length) await new Promise(r=>setTimeout(r,150));
+    if(i+BATCH<pairs.length) await new Promise(r=>setTimeout(r,80));
   }
   const mtfMap=buildMTFMap(newSignals);newSignals.forEach(s=>{s.mtfCount=(mtfMap[s.symbol]?.size||0);});
   const newKeys=new Set(newSignals.map(sigKey));const brandNew=newSignals.filter(s=>!prevSigKeys.has(sigKey(s)));prevSigKeys=newKeys;allSignals=newSignals;
@@ -1536,9 +1594,14 @@ async function triggerAndPoll(){
 
 // RENDER TABLE
 function render(){
-  document.getElementById('stVAH').textContent=allSignals.filter(s=>baseType(s.type)==='VAH').length;document.getElementById('stVAL').textContent=allSignals.filter(s=>baseType(s.type)==='VAL').length;document.getElementById('stPOC').textContent=allSignals.filter(s=>baseType(s.type)==='POC').length;document.getElementById('stTotal').textContent=allSignals.length;
+  document.getElementById('stVAH').textContent=allSignals.filter(s=>baseType(s.type)==='VAH').length;
+  document.getElementById('stVAL').textContent=allSignals.filter(s=>baseType(s.type)==='VAL').length;
+  document.getElementById('stPOC').textContent=allSignals.filter(s=>baseType(s.type)==='POC').length;
+  document.getElementById('stTotal').textContent=allSignals.length;
   const query=(document.getElementById('coinSearch').value||'').toUpperCase().trim();
-  let filtered=allSignals.filter(s=>{const bt=baseType(s.type);if(!activeTFs.has(s.tf))return false;if(s.type==='WARNING')return showWarnings;if(!activeSigs.has(bt))return false;if(s.strength<minStrength)return false;if(query&&!s.symbol.includes(query))return false;if(mtfOnly&&(s.mtfCount||0)<2)return false;return true;});
+  let filtered=allSignals.filter(s=>{const bt=baseType(s.type);if(!activeTFs.has(s.tf))return false;if(s.type==='WARNING')return showWarnings;if(!activeSigs.has(bt)&&bt!=='EMA')return false;if(s.strength<minStrength)return false;if(query&&!s.symbol.includes(query))return false;if(mtfOnly&&(s.mtfCount||0)<2)return false;return true;});
+  // Deduplicate: keep only highest-strength signal per symbol+TF to prevent duplicate rows
+  filtered=dedupBySymbolTF(filtered);
   filtered=sortSignals(filtered);document.getElementById('sigCount').textContent=`${filtered.length} SIGNAL${filtered.length!==1?'S':''}`;
   const rows=document.getElementById('rows');
   if(!filtered.length){rows.innerHTML=`<div class="empty"><div class="empty-ico">◈</div><div class="empty-txt">NO SIGNALS MATCH FILTERS</div></div>`;return;}
@@ -1560,8 +1623,10 @@ function render(){
     const liqBadge=s.liqSweep?'<span class="liq-badge">LIQ</span>':'';
     const patternBadge=s.pattern?`<span style="font-size:.46rem;padding:1px 4px;color:#00E5FF;border:1px solid rgba(0,229,255,.35);background:rgba(0,229,255,.08)">${s.pattern}</span>`:'';
     const huntBadge=s.stopHunt?`<span style="font-size:.46rem;padding:1px 4px;color:#FF4081;border:1px solid rgba(255,64,129,.4);background:rgba(255,64,129,.08);animation:pulse 1.5s infinite">${s.stopHunt.label}</span>`:'';
-    const emaCrossBadge=s.crossBullish12?'<span style="font-size:.44rem;padding:1px 5px;color:#FF3333;border:1px solid rgba(255,51,51,.5);background:rgba(255,51,51,.1);font-weight:900">BULL CONFIRM</span>':s.crossBullish5?'<span style="font-size:.44rem;padding:1px 5px;color:#FFD700;border:1px solid rgba(255,215,0,.4);background:rgba(255,215,0,.08)">EARLY BULL</span>':s.crossBearish12?'<span style="font-size:.44rem;padding:1px 5px;color:#FF5E3A;border:1px solid rgba(255,94,58,.5);background:rgba(255,94,58,.1);font-weight:900">BEAR CONFIRM</span>':s.earlyWarning?'<span style="font-size:.44rem;padding:1px 5px;color:#FF9500;border:1px solid rgba(255,149,0,.4)">WARN</span>':''
-    const adxBadge=s.adx?`<span style="font-size:.44rem;color:${s.adx>25?'var(--acc)':s.adx<20?'var(--vah)':'var(--muted)'}">${s.adx>25?'ADX:TREND':'ADX:CHOP'}</span>`:''
+    const emaCrossBadge=s.crossBullish12?'<span style="font-size:.44rem;padding:1px 5px;color:#FF3333;border:1px solid rgba(255,51,51,.5);background:rgba(255,51,51,.1);font-weight:900">BULL CONFIRM</span>':s.crossBullish5?'<span style="font-size:.44rem;padding:1px 5px;color:#FFD700;border:1px solid rgba(255,215,0,.4);background:rgba(255,215,0,.08)">EARLY BULL</span>':s.crossBearish12?'<span style="font-size:.44rem;padding:1px 5px;color:#FF5E3A;border:1px solid rgba(255,94,58,.5);background:rgba(255,94,58,.1);font-weight:900">BEAR CONFIRM</span>':s.earlyWarning?'<span style="font-size:.44rem;padding:1px 5px;color:#FF9500;border:1px solid rgba(255,149,0,.4)">WARN</span>':'';
+    const adxBadge=s.adx?`<span style="font-size:.44rem;color:${s.adx>25?'var(--acc)':s.adx<20?'var(--vah)':'var(--muted)'}">${s.adx>25?'ADX:TREND':'ADX:CHOP'}</span>`:'';
+    // Extra EMA signal type badge for EMA_EARLY / EMA_BULL rows
+    const emaTypeBadge=s.type==='EMA_EARLY'?'<span style="font-size:.44rem;padding:1px 5px;color:#FFD700;border:1px solid rgba(255,215,0,.5);background:rgba(255,215,0,.1);font-weight:900;animation:pulse 1.5s infinite">⚡ EMA5 CROSS</span>':s.type==='EMA_BULL'?'<span style="font-size:.44rem;padding:1px 5px;color:#00FFB2;border:1px solid rgba(0,255,178,.5);background:rgba(0,255,178,.08);font-weight:900">✅ EMA BULL</span>':'';
     const heatBar=renderHeatBar(s.heat||1);const age=getSignalAge(s.ts||Date.now());
     const rr=calcRR(s.price,s.vp,s.type);const rrColor=parseFloat(rr.rr)>=2?'rr-good':parseFloat(rr.rr)>=1?'rr-mid':'rr-bad';
     const note=tradeNotes[s.symbol];const noteDot=note?`<span style="color:var(--poc);font-size:.48rem" title="${note}">📝</span>`:'';
@@ -1569,7 +1634,7 @@ function render(){
     if(isMobile){return`<div class="${rowClass}" data-sym="${s.symbol}" onclick="openChart('${s.symbol}','${s.tf}','${s.type}',${vpStr})"><div class="card-top"><div class="coin"><div class="sym">${sym}${newTag}${mtfTag}${freshTag}</div><div class="pair">${s.symbol}${msBadge}${obBadge}${liqBadge}${patternBadge}${huntBadge}${noteDot}</div></div><div style="text-align:right"><div class="price-cell price-live">$${fp(dispPrice)}</div><div class="chg chg-live ${chgCls}">${chgStr}</div></div></div><div class="card-mid"><span class="badge ${s.type}">${bl}</span><span class="tf-tag">${s.tf.toUpperCase()}</span><span class="trend-pill ${s.trend||'NEUTRAL'}">${trendLbl}</span>${msBadge}</div><div class="card-bot">${heatBar}<div class="str-wrap"><div class="bar-bg"><div class="bar-fg" style="width:${s.strength}%"></div></div><div class="str-n">${s.strength}%</div></div></div></div>`;}
     return`<div class="${rowClass}" data-sym="${s.symbol}" style="animation-delay:${i*16}ms" onclick="openChart('${s.symbol}','${s.tf}','${s.type}',${vpStr})">
       <div class="td rank">${i+1}</div>
-      <div class="td"><div class="coin"><div class="sym">${sym}${newTag}${mtfTag}${freshTag}${noteDot}</div><div class="pair">${s.symbol}${msBadge}${obBadge}${liqBadge}<span class="age-tag ${age.cls}">${age.text}</span></div></div></div>
+      <div class="td"><div class="coin"><div class="sym">${sym}${newTag}${mtfTag}${freshTag}${noteDot}</div><div class="pair">${s.symbol}${msBadge}${obBadge}${liqBadge}${emaTypeBadge}<span class="age-tag ${age.cls}">${age.text}</span></div></div></div>
       <div class="td"><span class="price-cell price-live">$${fp(dispPrice)}</span></div>
       <div class="td"><span class="chg chg-live ${chgCls}">${chgStr}</span></div>
       <div class="td lvl">$${fp(s.vp.vah)}</div><div class="td lvl">$${fp(s.vp.val)}</div><div class="td lvl">$${fp(s.vp.poc)}</div>
@@ -1839,8 +1904,12 @@ function buildLWChart(candles,vp,sr,obs){
   const mainW=Math.max(270,Math.floor(window.innerWidth*.95-vpW-16));
   mainEl.style.height=mainH+'px';
   [mainEl,volEl,rsiEl].forEach(el=>el.style.width=mainW+'px');
-  volEl.style.display=layerState.VOL?'':'none';
-  rsiEl.style.display=layerState.RSI?'':'none';
+  // CRITICAL: must set height before LightweightCharts.createChart() or chart height=0
+  volEl.style.height='62px';
+  rsiEl.style.height='80px';
+  // Always make visible during chart creation — hide after charts are built
+  volEl.style.display='';
+  rsiEl.style.display='';
 
   const lastClose=candles[candles.length-1].close;
   const DEC=getPriceDecimals(lastClose);
@@ -2136,6 +2205,10 @@ function buildLWChart(candles,vp,sr,obs){
     }
   });
   mainChartObj.timeScale().fitContent();
+
+  // Apply VOL/RSI visibility AFTER charts are created (hidden element = 0 size bug)
+  if(!layerState.VOL) volEl.style.display='none';
+  if(!layerState.RSI) rsiEl.style.display='none';
 
   // ── Render toolbar ────────────────────────────────
   renderLayerToolbar();
