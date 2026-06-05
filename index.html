@@ -301,11 +301,12 @@ footer{margin-top:18px;padding-top:10px;border-top:1px solid var(--border);displ
 #modalNote:focus{border-color:var(--acc2);}
 .note-save-btn{background:transparent;border:1px solid var(--acc2);color:var(--acc2);font-family:'Space Mono',monospace;font-size:.52rem;padding:3px 8px;cursor:pointer;}
 .modal-body{flex:1;overflow:hidden;display:flex;flex-direction:column;min-height:0;}
-.chart-container{flex:1;display:flex;min-height:0;}
+.chart-container{flex:1;display:flex;flex-direction:column;min-height:0;overflow:hidden;}
+.chart-inner-row{flex:1;display:flex;min-height:0;overflow:hidden;}
 .main-chart-wrap{flex:1;display:flex;flex-direction:column;min-width:0;border-right:1px solid var(--border);overflow:hidden;}
-#mainChart{flex-shrink:0;position:relative;}
-#volChart{flex-shrink:0;height:62px;border-top:1px solid var(--border);}
-#rsiChart{flex-shrink:0;height:80px;border-top:1px solid var(--border);}
+#mainChart{flex-shrink:0;position:relative;overflow:hidden;}
+#volChart{flex-shrink:0;height:62px;}
+#rsiChart{flex-shrink:0;height:80px;}
 .vp-sidebar{width:106px;flex-shrink:0;background:var(--s2);display:flex;flex-direction:column;overflow:hidden;}
 .vp-sidebar-title{font-size:.44rem;color:var(--muted);padding:6px 8px 4px;border-bottom:1px solid var(--border);text-align:center;}
 .vp-ema-legend{padding:5px 6px;border-bottom:1px solid var(--border);display:flex;flex-direction:column;gap:3px;}
@@ -549,21 +550,20 @@ footer{margin-top:18px;padding-top:10px;border-top:1px solid var(--border);displ
       <div id="layerToolbar"></div>
       <div id="chartLoadingState" class="chart-loading"><div>LOADING…</div><div class="loading-bar"><div class="loading-bar-inner"></div></div></div>
       <div class="chart-container" id="chartContainer" style="display:none;">
-        <div class="main-chart-wrap">
-          <div id="mainChart" style="position:relative;">
-            <div class="chart-tooltip" id="chartTooltip">
-              <div class="tt-row"><span class="tt-lbl">TIME</span><span class="tt-val" id="ttTime">—</span></div>
-              <div class="tt-row"><span class="tt-lbl">O</span><span class="tt-val" id="ttOpen">—</span></div>
-              <div class="tt-row"><span class="tt-lbl">H</span><span class="tt-val" id="ttHigh">—</span></div>
-              <div class="tt-row"><span class="tt-lbl">L</span><span class="tt-val" id="ttLow">—</span></div>
-              <div class="tt-row"><span class="tt-lbl">C</span><span class="tt-val" id="ttClose">—</span></div>
-              <div class="tt-row"><span class="tt-lbl">VOL</span><span class="tt-val" id="ttVol">—</span></div>
+        <div class="chart-inner-row">
+          <div class="main-chart-wrap">
+            <div id="mainChart" style="position:relative;">
+              <div class="chart-tooltip" id="chartTooltip">
+                <div class="tt-row"><span class="tt-lbl">TIME</span><span class="tt-val" id="ttTime">—</span></div>
+                <div class="tt-row"><span class="tt-lbl">O</span><span class="tt-val" id="ttOpen">—</span></div>
+                <div class="tt-row"><span class="tt-lbl">H</span><span class="tt-val" id="ttHigh">—</span></div>
+                <div class="tt-row"><span class="tt-lbl">L</span><span class="tt-val" id="ttLow">—</span></div>
+                <div class="tt-row"><span class="tt-lbl">C</span><span class="tt-val" id="ttClose">—</span></div>
+                <div class="tt-row"><span class="tt-lbl">VOL</span><span class="tt-val" id="ttVol">—</span></div>
+              </div>
             </div>
           </div>
-          <div id="volChart" style="flex-shrink:0;height:62px;"></div>
-          <div id="rsiChart" style="flex-shrink:0;height:80px;"></div>
-        </div>
-        <div class="vp-sidebar">
+          <div class="vp-sidebar">
           <div class="vp-sidebar-title">VOL PROFILE</div>
           <div class="vp-ema-legend">
             <div class="vp-ema-row"><div class="vp-ema-dot" style="background:#FFD700"></div>MA5</div>
@@ -574,7 +574,10 @@ footer{margin-top:18px;padding-top:10px;border-top:1px solid var(--border);displ
             <div class="vp-ema-row"><div class="vp-ema-dot" style="background:var(--ob)"></div>OB</div>
           </div>
           <canvas id="vpHistogram"></canvas>
+          </div>
         </div>
+        <div id="volChart" style="flex-shrink:0;height:62px;border-top:1px solid var(--border);"></div>
+        <div id="rsiChart" style="flex-shrink:0;height:80px;border-top:1px solid var(--border);"></div>
       </div>
       <div class="chart-info-bar" id="chartInfoBar" style="display:none;">
         <div class="info-cell"><div class="info-lbl">VAH</div><div class="info-val vah-c" id="infoVAH">—</div></div>
@@ -1898,7 +1901,7 @@ function buildLWChart(candles,vp,sr,obs){
 
   mainChartObj=LightweightCharts.createChart(mainEl,{
     width:mainW,height:mainH,
-    layout:{background:{color:'#080F18'},textColor:'#3A6880',fontFamily:"'Space Mono',monospace",fontSize:10},
+    layout:{background:{type:'solid',color:'#080F18'},textColor:'#3A6880',fontFamily:"'Space Mono',monospace",fontSize:10},
     grid:{vertLines:{color:'rgba(19,36,53,0.6)'},horzLines:{color:'rgba(19,36,53,0.6)'}},
     crosshair:{mode:LightweightCharts.CrosshairMode.Normal,
       vertLine:{color:'rgba(0,191,255,0.4)',labelBackgroundColor:'#0C1A28'},
