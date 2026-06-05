@@ -2038,38 +2038,31 @@ function buildLWChart(candles,vp,sr,obs){
   layerDefs.EMA20=layerDefs.EMA12;layerDefs.EMA20_opts=layerDefs.EMA12_opts;
   layerDefs.EMA50=layerDefs.EMA53;layerDefs.EMA50_opts=layerDefs.EMA53_opts;
 
-  // ── Crossover markers on chart ─────────────────────────────────
-  // Mark the exact candle where 5 or 12 crossed the 53
+  // ── Signal marker vars (needed by crossover markers below) ───────
+  const last2=lwC[lwC.length-1];
+  const sc=currentSigType&&currentSigType.startsWith('VAH')?'#FF5E3A':currentSigType&&currentSigType.startsWith('VAL')?'#00FFB2':'#FFD700';
+  const ss2=currentSigType&&currentSigType.startsWith('VAH')?'arrowUp':currentSigType&&currentSigType.startsWith('VAL')?'arrowDown':'circle';
+  const sp=currentSigType&&currentSigType.startsWith('VAH')?'belowBar':'aboveBar';
+
+  // ── Crossover markers + signal marker — set once together ────────
   const crossMarkers=[];
   for(let i=1;i<candles.length;i++){
     const c=candles[i],pc=candles[i-1];
     if(!c.ema5||!c.ema12||!c.ema53)continue;
     const t=Math.floor(c.time/1000);
-    // Yellow(5) crosses above White(53) — early bull
     if(pc.ema5<=pc.ema53&&c.ema5>c.ema53)
       crossMarkers.push({time:t,position:'belowBar',color:'#FFD700',shape:'arrowUp',text:'MA5↑'});
-    // Red(12) crosses above White(53) — FULL BULL CONFIRM
     if(pc.ema12<=pc.ema53&&c.ema12>c.ema53)
       crossMarkers.push({time:t,position:'belowBar',color:'#FF3333',shape:'arrowUp',text:'BULL'});
-    // Yellow(5) crosses below White(53) — early bear warning
     if(pc.ema5>=pc.ema53&&c.ema5<c.ema53)
       crossMarkers.push({time:t,position:'aboveBar',color:'#FFD700',shape:'arrowDown',text:'MA5↓'});
-    // Red(12) crosses below White(53) — FULL BEAR CONFIRM
     if(pc.ema12>=pc.ema53&&c.ema12<c.ema53)
       crossMarkers.push({time:t,position:'aboveBar',color:'#FF3333',shape:'arrowDown',text:'BEAR'});
   }
+  if(currentSigType) crossMarkers.push({time:last2.time,position:sp,color:sc,shape:ss2,text:currentSigType,size:2});
   if(crossMarkers.length){
-    // Add to existing signal marker array
-    const sigMarker=currentSigType?[{time:lwC[lwC.length-1].time,position:sp,color:sc,shape:ss2,text:currentSigType,size:2}]:[];
-    candleSeries.setMarkers([...crossMarkers,...sigMarker].sort((a,b)=>a.time-b.time));
+    try{candleSeries.setMarkers(crossMarkers.sort((a,b)=>a.time-b.time));}catch(e){}
   }
-
-  // ── Signal marker ──────────────────────────────────
-  const last2=lwC[lwC.length-1];
-  const sc=currentSigType&&currentSigType.startsWith('VAH')?'#FF5E3A':currentSigType&&currentSigType.startsWith('VAL')?'#00FFB2':'#FFD700';
-  const ss2=currentSigType&&currentSigType.startsWith('VAH')?'arrowUp':currentSigType&&currentSigType.startsWith('VAL')?'arrowDown':'circle';
-  const sp=currentSigType&&currentSigType.startsWith('VAH')?'belowBar':'aboveBar';
-  if(currentSigType) candleSeries.setMarkers([{time:last2.time,position:sp,color:sc,shape:ss2,text:currentSigType,size:2}]);
 
   // ── Crosshair tooltip (full precision) ───────────
   const tooltip=document.getElementById('chartTooltip');
@@ -2135,79 +2128,7 @@ function buildLWChart(candles,vp,sr,obs){
   });
   rsiOs.setData(lwC.map(c=>({time:c.time,value:30})));
 
-  // ── DRAW RSI DIVERGENCE LINES ──────────────────────────────────
-  // Find swing points and draw connecting lines on RSI chart
-  (function drawRSIDivergence(){
-    const{swingHighs,swingLows}=findSwingPoints(candles,80,2);
-    const divLines=[];
-
-    // BEARISH DIV: price HH but RSI LH — draw red line connecting the two RSI swing highs
-    if(swingHighs.length>=2){
-      const sh1=swingHighs[swingHighs.length-2];
-      const sh2=swingHighs[swingHighs.length-1];
-      const priceHH=candles[sh2].high>candles[sh1].high;
-      const rsiLH=candles[sh2].rsi<candles[sh1].rsi;
-      if(priceHH&&rsiLH&&(candles.length-1-sh2)<=10){
-        // Draw connecting line between the two RSI highs
-        const divSeries=rsiChartObj.addLineSeries({
-          color:'rgba(255,94,58,0.9)',lineWidth:2,
-          lineStyle:LightweightCharts.LineStyle.Solid,
-          priceLineVisible:false,lastValueVisible:false,
-          crosshairMarkerVisible:false
-        });
-        divSeries.setData([
-          {time:Math.floor(candles[sh1].time/1000),value:candles[sh1].rsi||50},
-          {time:Math.floor(candles[sh2].time/1000),value:candles[sh2].rsi||50}
-        ]);
-        try{candleSeries.setMarkers((candleSeries._markers||[]).concat(
-          {time:Math.floor(candles[sh2].time/1000),position:'aboveBar',color:'#FF5E3A',shape:'circle',text:'BEAR DIV',size:1}
-        ));}catch(e){}
-      }
-    }
-
-    // BULLISH DIV: price LL but RSI HL — draw green line connecting the two RSI swing lows
-    if(swingLows.length>=2){
-      const sl1=swingLows[swingLows.length-2];
-      const sl2=swingLows[swingLows.length-1];
-      const priceLL=candles[sl2].low<candles[sl1].low;
-      const rsiHL=candles[sl2].rsi>candles[sl1].rsi;
-      if(priceLL&&rsiHL&&(candles.length-1-sl2)<=10){
-        const divSeries=rsiChartObj.addLineSeries({
-          color:'rgba(0,255,178,0.9)',lineWidth:2,
-          lineStyle:LightweightCharts.LineStyle.Solid,
-          priceLineVisible:false,lastValueVisible:false,
-          crosshairMarkerVisible:false
-        });
-        divSeries.setData([
-          {time:Math.floor(candles[sl1].time/1000),value:candles[sl1].rsi||50},
-          {time:Math.floor(candles[sl2].time/1000),value:candles[sl2].rsi||50}
-        ]);
-        try{candleSeries.setMarkers((candleSeries._markers||[]).concat(
-          {time:Math.floor(candles[sl2].time/1000),position:'belowBar',color:'#00FFB2',shape:'circle',text:'BULL DIV',size:1}
-        ));}catch(e){}
-      }
-    }
-
-    // HIDDEN BULL DIV: price HL but RSI LL — orange dashed
-    if(swingLows.length>=2){
-      const sl1=swingLows[swingLows.length-2];
-      const sl2=swingLows[swingLows.length-1];
-      const priceHL=candles[sl2].low>candles[sl1].low;
-      const rsiLL=candles[sl2].rsi<candles[sl1].rsi;
-      if(priceHL&&rsiLL&&(candles.length-1-sl2)<=15){
-        const divSeries=rsiChartObj.addLineSeries({
-          color:'rgba(255,149,0,0.8)',lineWidth:1.5,
-          lineStyle:LightweightCharts.LineStyle.Dashed,
-          priceLineVisible:false,lastValueVisible:false,
-          crosshairMarkerVisible:false
-        });
-        divSeries.setData([
-          {time:Math.floor(candles[sl1].time/1000),value:candles[sl1].rsi||50},
-          {time:Math.floor(candles[sl2].time/1000),value:candles[sl2].rsi||50}
-        ]);
-      }
-    }
-  })();
+  // ── RSI divergence removed — clean RSI line only ──────────────
 
   // ── VPVR — Visible Range Volume Profile ──────────────────────────
   // Draw after EMA lines so VPVR levels are visible on top
