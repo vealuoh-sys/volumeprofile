@@ -1929,8 +1929,11 @@ function buildLWChart(candles,vp,sr,obs){
   const mainH=Math.max(240,Math.floor(window.innerHeight*.38));
   const volH=62;
   const rsiH=80;
-  const vpW=window.innerWidth>700?108:0;
-  const mainW=Math.max(270,Math.floor(window.innerWidth*.95-vpW-16));
+  const SIDEBAR_W=106;
+  // Measure actual modal inner width — much more reliable than window.innerWidth math
+  const modalBody=container.closest('.modal-body')||container.parentElement;
+  const availW=modalBody?modalBody.clientWidth:Math.floor(window.innerWidth*.94);
+  const mainW=Math.max(270, availW - SIDEBAR_W - 2); // 2px for border
 
   // Set ALL heights explicitly on the containers
   mainEl.style.height=mainH+'px';
@@ -2217,14 +2220,17 @@ function handleOverlayClick(e){if(e.target===document.getElementById('modalOverl
 
 window.addEventListener('resize',()=>{
   if(!mainChartObj)return;
-  const vpW=window.innerWidth>700?108:0;
-  const mainW=Math.max(270,Math.floor(window.innerWidth*.95-vpW-16));
+  const container=document.getElementById('chartContainer');
+  const modalBody=container?container.closest('.modal-body')||container.parentElement:null;
+  const availW=modalBody?modalBody.clientWidth:Math.floor(window.innerWidth*.94);
+  const mainW=Math.max(270,availW-106-2);
   const mainH=Math.max(240,Math.floor(window.innerHeight*.38));
   const mainEl=document.getElementById('mainChart');
   const innerRow=document.getElementById('chartInnerRow');
-  const container=document.getElementById('chartContainer');
-  if(mainEl)mainEl.style.height=mainH+'px';
+  const sidebar=innerRow?innerRow.querySelector('.vp-sidebar'):null;
+  if(mainEl){mainEl.style.height=mainH+'px';mainEl.style.width=mainW+'px';}
   if(innerRow)innerRow.style.height=mainH+'px';
+  if(sidebar){sidebar.style.height=mainH+'px';sidebar.style.maxHeight=mainH+'px';}
   if(container)container.style.height=(mainH+62+80)+'px';
   ['mainChart','volChart','rsiChart'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.width=mainW+'px';});
   mainChartObj.applyOptions({width:mainW,height:mainH});
