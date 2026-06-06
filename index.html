@@ -1305,6 +1305,45 @@ function resolveType(bt,div,volTier){if(bt==='WARNING')return'WARNING';if(div===
 // 1. MTF MAP
 function buildMTFMap(signals){const map={};signals.forEach(s=>{if(!map[s.symbol])map[s.symbol]=new Set();map[s.symbol].add(s.tf);});return map;}
 
+// ── MERGE DUPLICATE SIGNALS ────────────────────────────────────────
+// Rule 1: Same symbol + same TF → keep strongest, attach others as extraBadges
+// Rule 2: Same symbol + different TFs → keep as separate rows BUT mark with all TFs (mtfTFs[])
+// This eliminates visual duplicates while preserving all signal information.
+const SIG_PRIORITY={
+  VAH_SPIKE:10,VAL_SPIKE:10,POC_SPIKE:10,
+  VAH:8,VAL:8,POC:8,
+  VAH_DIV:7,VAL_DIV:7,POC_DIV:7,
+  BULL_CONFIRM:6,EARLY_BULL:5,EARLY_BEAR:4,
+  WARNING:2
+};
+function sigPriority(type){return SIG_PRIORITY[type]||3;}
+
+function mergeSignals(signals){
+  // Group by symbol+tf
+  const groups={};
+  signals.forEach(s=>{
+    const key=s.symbol+'|'+s.tf;
+    if(!groups[key])groups[key]=[];
+    groups[key].push(s);
+  });
+
+  const merged=[];
+  Object.values(groups).forEach(group=>{
+    if(group.length===1){merged.push(group[0]);return;}
+    // Sort by priority desc, then strength desc
+    group.sort((a,b)=>(sigPriority(b.type)-sigPriority(a.type))||((b.strength||0)-(a.strength||0)));
+    const primary=group[0];
+    // Attach secondary signal types as extraBadges
+    primary.extraBadges=group.slice(1).map(s=>s.type);
+    // Boost strength slightly for having multiple signals on same TF
+    primary.strength=Math.min(100,Math.round((primary.strength||0)*1.08));
+    merged.push(primary);
+  });
+
+  // Sort merged by priority then strength
+  return merged.sort((a,b)=>(sigPriority(b.type)-sigPriority(a.type))||((b.strength||0)-(a.strength||0)));
+}
+
 // 7. R:R CALCULATOR — stop/target based on signal type
 function calcRR(price,vp,sigType){
   const bt=baseType(sigType||'POC');
@@ -1630,7 +1669,9 @@ async function triggerAndPoll(){
     if(i+BATCH<pairs.length) await new Promise(r=>setTimeout(r,80));
   }
   const mtfMap=buildMTFMap(newSignals);newSignals.forEach(s=>{s.mtfCount=(mtfMap[s.symbol]?.size||0);});
-  const newKeys=new Set(newSignals.map(sigKey));const brandNew=newSignals.filter(s=>!prevSigKeys.has(sigKey(s)));prevSigKeys=newKeys;allSignals=newSignals;
+  // Merge duplicate signals: same symbol+TF → one row with extra badges
+  const mergedSignals=mergeSignals(newSignals);
+  const newKeys=new Set(mergedSignals.map(sigKey));const brandNew=mergedSignals.filter(s=>!prevSigKeys.has(sigKey(s)));prevSigKeys=newKeys;allSignals=mergedSignals;
   // Volume anomaly warning
   const isAnomaly=detectVolumeAnomaly(newSignals);
   if(isAnomaly){
@@ -1704,14 +1745,14 @@ function render(){
     const rr=calcRR(s.price,s.vp,s.type);const rrColor=parseFloat(rr.rr)>=2?'rr-good':parseFloat(rr.rr)>=1?'rr-mid':'rr-bad';
     const note=tradeNotes[s.symbol];const noteDot=note?`<span style="color:var(--poc);font-size:.48rem" title="${note}">📝</span>`:'';
     const rowClass=`row${isNew?' is-new':''}${inWL?' wl-row':''}${isMTF?' mtf-row':''}${isStarred?' starred':''}`;
-    if(isMobile){return`<div class="${rowClass}" data-sym="${s.symbol}" data-rowkey="${rowKey}" onclick="openChart('${s.symbol}','${s.tf}','${s.type}',${vpStr})"><div class="card-top"><div class="coin"><div class="sym">${sym}${newTag}${mtfTag}${freshTag}${sectorBadge}</div><div class="pair">${s.symbol}${msBadge}${obBadge}${liqBadge}${patternBadge}${huntBadge}${noteDot}</div></div><div style="text-align:right"><div class="price-cell price-live">$${fp(dispPrice)}</div><div class="chg chg-live ${chgCls}">${chgStr}</div></div></div><div class="card-mid"><span class="badge ${s.type}">${bl}</span><span class="tf-tag">${s.tf.toUpperCase()}</span><span class="trend-pill ${s.trend||'NEUTRAL'}">${trendLbl}</span>${qaButtons}</div><div class="card-bot">${heatBar}<div class="str-wrap"><div class="bar-bg"><div class="bar-fg" style="width:${s.strength}%"></div></div><div class="str-n">${s.strength}%</div></div></div></div>`;}
+    if(isMobile){return`<div class="${rowClass}" data-sym="${s.symbol}" data-rowkey="${rowKey}" onclick="openChart('${s.symbol}','${s.tf}','${s.type}',${vpStr})"><div class="card-top"><div class="coin"><div class="sym">${sym}${newTag}${mtfTag}${freshTag}${sectorBadge}</div><div class="pair">${s.symbol}${msBadge}${obBadge}${liqBadge}${patternBadge}${huntBadge}${noteDot}</div></div><div style="text-align:right"><div class="price-cell price-live">$${fp(dispPrice)}</div><div class="chg chg-live ${chgCls}">${chgStr}</div></div></div><div class="card-mid"><span class="badge ${s.type}">${bl}</span>${(s.extraBadges||[]).map(t=>`<span class="badge ${t}" style="font-size:.4rem;padding:1px 3px">${LABEL_MAP[t]||t}</span>`).join('')}<span class="tf-tag">${s.tf.toUpperCase()}</span><span class="trend-pill ${s.trend||'NEUTRAL'}">${trendLbl}</span>${qaButtons}</div><div class="card-bot">${heatBar}<div class="str-wrap"><div class="bar-bg"><div class="bar-fg" style="width:${s.strength}%"></div></div><div class="str-n">${s.strength}%</div></div></div></div>`;}
     return`<div class="${rowClass}" data-sym="${s.symbol}" data-rowkey="${rowKey}" style="animation-delay:${i*16}ms" onclick="openChart('${s.symbol}','${s.tf}','${s.type}',${vpStr})">
       <div class="td rank">${qaButtons}</div>
       <div class="td"><div class="coin"><div class="sym">${sym}${newTag}${mtfTag}${freshTag}${noteDot}</div><div class="pair">${s.symbol}${sectorBadge}${msBadge}${obBadge}${liqBadge}<span class="age-tag ${age.cls}">${age.text}</span></div></div></div>
       <div class="td"><span class="price-cell price-live">$${fp(dispPrice)}</span></div>
       <div class="td"><span class="chg chg-live ${chgCls}">${chgStr}</span></div>
       <div class="td lvl">$${fp(s.vp.vah)}</div><div class="td lvl">$${fp(s.vp.val)}</div><div class="td lvl">$${fp(s.vp.poc)}</div>
-      <div class="td"><span class="badge ${s.type}">${bl}</span></div>
+      <div class="td"><span class="badge ${s.type}">${bl}</span>${(s.extraBadges||[]).map(t=>`<span class="badge ${t}" style="font-size:.4rem;padding:1px 3px;margin-left:2px">${LABEL_MAP[t]||t}</span>`).join('')}</div>
       <div class="td"><span class="tf-tag">${s.tf.toUpperCase()}</span></div>
       <div class="td" style="display:flex;flex-direction:column;gap:2px;align-items:flex-end;"><span class="trend-pill ${s.trend||'NEUTRAL'}">${trendLbl}</span><span class="vol-tier ${s.volTier||'NORMAL'}">${volLbl}</span></div>
       <div class="td">${heatBar}</div>
