@@ -307,12 +307,12 @@ footer{margin-top:18px;padding-top:10px;border-top:1px solid var(--border);displ
 #mainChart{display:block;position:relative;overflow:hidden;}
 #volChart{display:block;height:62px;border-top:1px solid var(--border);}
 #rsiChart{display:block;height:80px;border-top:1px solid var(--border);}
-.vp-sidebar{width:106px;flex-shrink:0;background:var(--s2);display:flex;flex-direction:column;overflow:hidden;}
-.vp-sidebar-title{font-size:.44rem;color:var(--muted);padding:6px 8px 4px;border-bottom:1px solid var(--border);text-align:center;}
-.vp-ema-legend{padding:5px 6px;border-bottom:1px solid var(--border);display:flex;flex-direction:column;gap:3px;}
+.vp-sidebar{width:106px;flex-shrink:0;background:var(--s2);display:flex;flex-direction:column;overflow:hidden;max-height:100%;}
+.vp-sidebar-title{font-size:.44rem;color:var(--muted);padding:4px 8px 3px;border-bottom:1px solid var(--border);text-align:center;flex-shrink:0;}
+.vp-ema-legend{padding:4px 6px;border-bottom:1px solid var(--border);display:flex;flex-direction:column;gap:2px;flex-shrink:0;}
 .vp-ema-row{display:flex;align-items:center;gap:4px;font-size:.44rem;color:var(--muted);}
 .vp-ema-dot{width:12px;height:2px;border-radius:1px;}
-#vpHistogram{flex:1;overflow:hidden;}
+#vpHistogram{flex:1;min-height:0;overflow:hidden;display:block;width:100%;}
 .chart-info-bar{display:grid;grid-template-columns:repeat(5,1fr);background:var(--s2);border-top:1px solid var(--border);flex-shrink:0;}
 .info-cell{padding:6px 10px;border-right:1px solid var(--border);display:flex;flex-direction:column;gap:2px;}
 .info-cell:last-child{border-right:none;}
@@ -1891,7 +1891,12 @@ function buildLWChart(candles,vp,sr,obs){
   // Set ALL heights explicitly on the containers
   mainEl.style.height=mainH+'px';
   mainEl.style.width=mainW+'px';
-  if(innerRow){innerRow.style.height=mainH+'px';}
+  if(innerRow){
+    innerRow.style.height=mainH+'px';
+    // Also cap the vp-sidebar so it never overflows into vol/rsi area
+    const sidebar=innerRow.querySelector('.vp-sidebar');
+    if(sidebar){sidebar.style.height=mainH+'px';sidebar.style.maxHeight=mainH+'px';}
+  }
   container.style.height=(mainH+volH+rsiH)+'px';
 
   // Set widths on sub-charts
@@ -2252,21 +2257,27 @@ function addVPVRToChart(candles, tf) {
   const MM=getMinMove(lastClose);
   const flat=val=>lwC.map(c=>({time:c.time,value:val}));
 
-  // VPVR uses cyan/teal palette to distinguish from static VP (red/gold/green)
-  const addVPVRLevel=(storeKey,val,color,label,lineStyle)=>{
-    const vis=layerState[storeKey]!==false;
-    const opts={color,lineWidth:1.5,lineStyle,title:label,
-      priceLineVisible:false,lastValueVisible:vis,crosshairMarkerVisible:false,
-      visible:vis,priceFormat:{type:'price',precision:DEC,minMove:MM}};
-    const data=flat(val);
-    const s=mainChartObj.addLineSeries(opts);
-    s.setData(data);
-    layerDefs[storeKey]=s;
-    layerDefs[storeKey+'_opts']={opts:{...opts,visible:true,lastValueVisible:true},data};
+  const addVPVRLevel=(storeKey,val,color,label)=>{
+    try{
+      const opts={
+        color,lineWidth:2,
+        lineStyle:LightweightCharts.LineStyle.Dashed,
+        title:label,
+        priceLineVisible:false,
+        lastValueVisible:true,
+        crosshairMarkerVisible:false,
+        priceFormat:{type:'price',precision:DEC,minMove:MM}
+      };
+      const data=flat(val);
+      const s=mainChartObj.addLineSeries(opts);
+      s.setData(data);
+      layerDefs[storeKey]=s;
+      layerDefs[storeKey+'_opts']={opts,data};
+    }catch(e){console.error('VPVR level error:',storeKey,e);}
   };
-  addVPVRLevel('VPVR_VAH',vpvr.vah,'rgba(0,229,255,0.9)','◀ VR-H',LightweightCharts.LineStyle.LargeDashed);
-  addVPVRLevel('VPVR_POC',vpvr.poc,'rgba(0,255,255,0.9)','◀ VR-P',LightweightCharts.LineStyle.LargeDashed);
-  addVPVRLevel('VPVR_VAL',vpvr.val,'rgba(64,255,200,0.9)','◀ VR-L',LightweightCharts.LineStyle.LargeDashed);
+  addVPVRLevel('VPVR_VAH',vpvr.vah,'rgba(0,229,255,0.9)','VR-H');
+  addVPVRLevel('VPVR_POC',vpvr.poc,'rgba(0,255,255,0.9)','VR-P');
+  addVPVRLevel('VPVR_VAL',vpvr.val,'rgba(64,255,200,0.9)','VR-L');
 }
 
 // ══════════════════════════════════════════════════════════════════
