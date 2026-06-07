@@ -160,8 +160,11 @@ header{display:flex;align-items:center;justify-content:space-between;padding:16p
 .qa-btn{background:transparent;border:none;font-size:.78rem;cursor:pointer;padding:0 3px;line-height:1;transition:transform .1s;opacity:.5;}
 .qa-btn:hover{opacity:1;transform:scale(1.2);}
 .qa-btn.star{color:#FFD700;}.qa-btn.dismiss{color:#FF5E3A;}
-.row.dismissed{display:none;}
+.row.counter-trend{opacity:.65;border-left:3px solid #FF5E3A !important;}
 .row.starred{border-left:3px solid #FFD700 !important;}
+.row.counter-trend.starred{border-left:3px solid #FFD700 !important;opacity:.75;}
+/* Grade A rows get subtle green glow */
+.row:has(.grade-a-row){box-shadow:inset 0 0 0 1px rgba(0,255,178,.08);}
 /* Win rate panel */
 .wr-panel{background:var(--s1);border:1px solid var(--border);margin-bottom:11px;overflow:hidden;display:none;}
 .wr-panel.open{display:block;}
@@ -425,6 +428,42 @@ footer{margin-top:18px;padding-top:10px;border-top:1px solid var(--border);displ
   <button class="sig-btn" id="warnBtn" onclick="togWarn(this)" style="border-color:#ff5e3a;color:#ff5e3a;">⚠ FAKEOUTS</button>
   <button class="sig-btn" id="mtfBtn" onclick="togMTF(this)" style="border-color:#BF5FFF;color:#BF5FFF;">◈ MTF ONLY</button>
 </div>
+<!-- TRADING QUALITY FILTERS -->
+<div style="display:flex;align-items:center;gap:6px;padding:5px 0 5px;flex-wrap:wrap;">
+  <span style="font-size:.5rem;color:var(--muted);letter-spacing:.14em">QUALITY:</span>
+  <button id="btnTrendAlign" class="sig-btn" style="border-color:var(--acc);color:var(--acc);background:rgba(0,255,178,.07)" onclick="togTrendAlign()">✦ TREND ALIGNED</button>
+  <div style="display:flex;align-items:center;gap:4px;font-size:.54rem;color:var(--muted)">
+    <span>MIN VOL:</span>
+    <select id="selMinVol" onchange="setMinVol(this.value)" style="background:var(--s2);border:1px solid var(--border2);color:var(--acc2);font-family:'Space Mono',monospace;font-size:.52rem;padding:2px 5px;outline:none;">
+      <option value="ALL">ALL</option>
+      <option value="STRONG">STRONG 1.5x+</option>
+      <option value="CONFIRMED" selected>CONFIRMED 2x+</option>
+      <option value="SPIKE">SPIKE 3x+</option>
+    </select>
+  </div>
+  <div style="display:flex;align-items:center;gap:4px;font-size:.54rem;color:var(--muted)">
+    <span>ADX MIN:</span>
+    <select id="selADX" onchange="setADXMin(parseInt(this.value))" style="background:var(--s2);border:1px solid var(--border2);color:var(--warn);font-family:'Space Mono',monospace;font-size:.52rem;padding:2px 5px;outline:none;">
+      <option value="0">OFF</option>
+      <option value="15">15 (loose)</option>
+      <option value="20" selected>20 (standard)</option>
+      <option value="25">25 (strict)</option>
+    </select>
+  </div>
+  <div style="display:flex;align-items:center;gap:4px;font-size:.54rem;color:var(--muted)">
+    <span>MAX POC DIST:</span>
+    <select id="selPOCDist" onchange="setPOCDist(parseInt(this.value))" style="background:var(--s2);border:1px solid var(--border2);color:var(--poc);font-family:'Space Mono',monospace;font-size:.52rem;padding:2px 5px;outline:none;">
+      <option value="100">OFF</option>
+      <option value="3">3%</option>
+      <option value="6" selected>6%</option>
+      <option value="10">10%</option>
+      <option value="15">15%</option>
+    </select>
+  </div>
+  <button onclick="resetQualityFilters()" style="background:transparent;border:1px solid var(--border);color:var(--muted);font-family:'Space Mono',monospace;font-size:.5rem;padding:3px 8px;cursor:pointer;margin-left:4px">RESET</button>
+</div>
+<!-- BEST SETUPS BAR -->
+<div id="bestSetupsBar" style="display:none;align-items:center;gap:6px;padding:6px 10px;background:rgba(0,255,178,.03);border:1px solid rgba(0,255,178,.15);border-radius:2px;flex-wrap:wrap;margin-bottom:8px;"></div>
 <div class="filter-row">
   <div class="search-wrap">
     <span class="search-ico">⌕</span>
@@ -662,13 +701,12 @@ const DEFAULT_PAIRS=[
   'LISTAUSDT','BOMEUSDT','TURBOUSDT','MEWUSDT','PEPEUSDT','WIFUSDT','BONKUSDT','FLOKIUSDT','CFXUSDT','CKBUSDT',
   'KAIAUSDT','MOVEUSDT','MEUSDT','AEROUSDT','MORPHOUSDT','SCRUSDT','BERAUSDT','STORYUSDT','INITUSDT','PNUTUSDT',
   'ACTUSDT','GRASSUSDT','HYPEUSDT','SOLVUSDT','XDCUSDT','POLUSDT','ONDOUSDT','UXLINKUSDT','LAYERUSDT','BIOUSDT',
-  'VINEUSDT','CHILLGUYUSDT','NEIROUSDT','MOODENGUSDT','GOATUSDT','TRUMPUSDT','MELANIAUSDT','FARTCOINUSDT','DEGOUSDT','LPTUSDT',
-  'AEVOUSDT','OMNIUSDT','SAGAUSDT','VANRYUSDT','ETHFIUSDT','XAIUSDT','MANTAUSDT','FRONTUSDT','NFPUSDT','AIUSDT',
+  'VINEUSDT','NEIROUSDT','DEGOUSDT','LPTUSDT','AEVOUSDT','OMNIUSDT','SAGAUSDT','VANRYUSDT','ETHFIUSDT','XAIUSDT','MANTAUSDT','FRONTUSDT','NFPUSDT','AIUSDT',
   'WOOUSDT','SFPUSDT','BANDUSDT','OCEANUSDT','LRCUSDT','STORJUSDT','ANKRUSDT','BATUSDT','CHZUSDT','ENJUSDT',
   'ONTUSDT','ZECUSDT','DASHUSDT','QTUMUSDT','IOSTUSDT','RVNUSDT','ZILUSDT','HOTUSDT','SONICUSDT','COSUSDT',
-  'SPELLUSDT','COTIUSDT','XVSUSDT','ALPACAUSDT','IDUSDT','JOEUSDT','HIGHUSDT','CVXUSDT','PENDLEUSDT','PYRUSDT',
-  'NKNUSDT','CKBUSDT','CTSIUSDT','STPTUSDT','VOXELUSDT','SYSUSDT','RADUSDT','KDAUSDT','FLMUSDT','REEFUSDT',
-  'TRUUSDT','BURGERUSDT','ALPINEUSDT','LOOMUSDT','IDEXUSDT','WANUSDT','KAVAUSDT','CELOUSDT','AGLDUSDT','CLVUSDT'
+  'SPELLUSDT','COTIUSDT','XVSUSDT','ALPACAUSDT','IDUSDT','JOEUSDT','HIGHUSDT','CVXUSDT','PYRUSDT','STPTUSDT',
+  'NKNUSDT','CTSIUSDT,'VOXELUSDT','SYSUSDT','RADUSDT','KDAUSDT','FLMUSDT','REEFUSDT','CELOUSDT',
+  'TRUUSDT','LOOMUSDT','WANUSDT','KAVAUSDT','CLVUSDT','IDEXUSDT','BURGERUSDT','ALPINEUSDT'
 ];
 
 // STATE
@@ -679,6 +717,12 @@ let livePrices={},watchlist=[],priceAlerts=[],coinGroups=[],activeGroup=null,tra
 let wsConn=null,wsReconnectTimer=null,candleCache={};
 let currentSymbol=null,currentTF='1h',currentSigType=null;
 let mainChartObj=null,volChartObj=null,rsiChartObj=null,candleSeries=null;
+
+// ── TRADING QUALITY FILTERS (all default to strict/professional) ──
+let filterTrendAligned=true;   // Only signals matching higher-TF trend
+let filterMinVol='CONFIRMED';  // CONFIRMED=2x avg minimum (ALL/STRONG/CONFIRMED/SPIKE)
+let filterADXMin=20;           // Hide signals when ADX < 20 (chop market)
+let filterPOCDistMax=6;        // Hide signals where price > 6% from POC (chasing)
 
 const LABEL_MAP={
   VAH:'▲ VAH BREAK',VAH_SPIKE:'▲ VAH+SPIKE',VAL:'▼ VAL RECLAIM',
@@ -1299,6 +1343,50 @@ function detectFreshness(candles,vp){const n=candles.length,last=candles[n-1],pr
 // 11. SIGNAL AGE
 function getSignalAge(ts){if(!ts)return{text:"—",cls:""};const diff=Date.now()-ts;const secs=Math.floor(diff/1000);if(secs<90)return{text:"JUST NOW",cls:"fresh"};const mins=Math.floor(diff/60000);if(mins<5)return{text:mins+"m ago",cls:"fresh"};if(mins<30)return{text:mins+"m ago",cls:"mid"};if(mins<60)return{text:mins+"m ago",cls:""};return{text:Math.floor(mins/60)+"h ago",cls:""};} 
 
+// ── TRADING QUALITY FILTER FUNCTIONS ─────────────────────────────
+function togTrendAlign(){
+  filterTrendAligned=!filterTrendAligned;
+  const btn=document.getElementById('btnTrendAlign');
+  if(btn){btn.style.background=filterTrendAligned?'rgba(0,255,178,.07)':'transparent';btn.style.borderColor=filterTrendAligned?'var(--acc)':'var(--border)';btn.style.color=filterTrendAligned?'var(--acc)':'var(--muted)';}
+  render();
+}
+function setMinVol(v){filterMinVol=v;render();}
+function setADXMin(v){filterADXMin=v;render();}
+function setPOCDist(v){filterPOCDistMax=v;render();}
+function resetQualityFilters(){
+  filterTrendAligned=true;filterMinVol='CONFIRMED';filterADXMin=20;filterPOCDistMax=6;
+  document.getElementById('selMinVol').value='CONFIRMED';
+  document.getElementById('selADX').value='20';
+  document.getElementById('selPOCDist').value='6';
+  const btn=document.getElementById('btnTrendAlign');
+  if(btn){btn.style.background='rgba(0,255,178,.07)';btn.style.borderColor='var(--acc)';btn.style.color='var(--acc)';}
+  render();
+}
+
+// Signal passes all quality filters?
+function passesQualityFilters(s){
+  // 1. Trend aligned filter
+  if(filterTrendAligned){
+    const bt=baseType(s.type);
+    const bullSignal=bt==='VAL'||bt==='POC'||bt==='EMA_BULL';
+    const bearSignal=bt==='VAH';
+    if(bullSignal&&s.trend==='DOWN'&&['LL','LH','CHOCH'].includes(s.ms))return false;
+  }
+  // 2. Volume minimum filter
+  if(filterMinVol!=='ALL'){
+    const volOrder={ALL:0,NORMAL:1,STRONG:2,CONFIRMED:3,SPIKE:4};
+    if((volOrder[s.volTier]||0)<(volOrder[filterMinVol]||0))return false;
+  }
+  // 3. ADX chop filter
+  if(filterADXMin>0&&s.adx>0&&s.adx<filterADXMin)return false;
+  // 4. POC distance filter
+  if(filterPOCDistMax<100&&s.vp&&s.price){
+    const distPct=Math.abs((s.price-s.vp.poc)/s.vp.poc*100);
+    if(distPct>filterPOCDistMax)return false;
+  }
+  return true;
+}
+
 // TYPE RESOLVER
 function resolveType(bt,div,volTier){if(bt==='WARNING')return'WARNING';if(div==='BULLISH'){if(bt==='VAL')return'VAL_DIV';if(bt==='POC')return'POC_DIV';}if(volTier==='SPIKE'||volTier==='CONFIRMED'){if(bt==='VAH')return'VAH_SPIKE';if(bt==='VAL')return'VAL_SPIKE';if(bt==='POC')return'POC_SPIKE';}return bt;}
 
@@ -1342,6 +1430,64 @@ function mergeSignals(signals){
 
   // Sort merged by priority then strength
   return merged.sort((a,b)=>(sigPriority(b.type)-sigPriority(a.type))||((b.strength||0)-(a.strength||0)));
+}
+
+// ── SIGNAL GRADE A/B/C/D ─────────────────────────────────────────
+function calcGrade(s){
+  // A: Pro setup — all boxes ticked
+  const volOk=s.volTier==='SPIKE'||s.volTier==='CONFIRMED';
+  const trendOk=s.trend==='UP'&&(baseType(s.type)==='VAL'||baseType(s.type)==='POC')||
+                s.trend==='UP'&&baseType(s.type)==='VAH'||
+                s.trend==='DOWN'&&baseType(s.type)==='VAH';
+  const adxOk=!s.adx||s.adx>25;
+  const mtfOk=(s.mtfCount||0)>=2;
+  const confOk=s.confluence>=65;
+  const notCounter=!s.counterTrend;
+  if(confOk&&volOk&&trendOk&&adxOk&&mtfOk&&notCounter)return'A';
+  if((s.confluence>=50)&&(volOk||trendOk)&&notCounter&&(s.strength>=55))return'B';
+  if(s.confluence>=35&&s.strength>=35)return'C';
+  return'D';
+}
+const GRADE_CSS={
+  A:'background:rgba(0,255,178,.18);color:#00FFB2;border:1px solid rgba(0,255,178,.6);font-weight:900',
+  B:'background:rgba(0,191,255,.12);color:#00BFFF;border:1px solid rgba(0,191,255,.4);font-weight:700',
+  C:'background:rgba(255,184,0,.1);color:#FFB800;border:1px solid rgba(255,184,0,.3)',
+  D:'background:rgba(100,100,100,.08);color:#666;border:1px solid #333'
+};
+
+// ── BEST SETUP PICKER ─────────────────────────────────────────────
+// Runs after each scan — finds top 3 A-grade signals and pins them
+let bestSetups=[];
+function pickBestSetups(signals){
+  const graded=signals.map(s=>({...s,grade:calcGrade(s)}));
+  const aGrade=graded.filter(s=>s.grade==='A'&&s.freshness!=='STALE');
+  // Sort by: confluence desc, then strength desc
+  aGrade.sort((a,b)=>(b.confluence||0)-(a.confluence||0)||(b.strength||0)-(a.strength||0));
+  bestSetups=aGrade.slice(0,3);
+  renderBestSetups();
+}
+
+function renderBestSetups(){
+  const el=document.getElementById('bestSetupsBar');
+  if(!el)return;
+  if(!bestSetups.length){el.style.display='none';return;}
+  el.style.display='flex';
+  el.innerHTML=`<span style="font-size:.48rem;color:var(--muted);letter-spacing:.14em;flex-shrink:0;margin-right:6px">⭐ BEST SETUPS:</span>`+
+  bestSetups.map((s,i)=>{
+    const sym=s.symbol.replace('USDT','');
+    const secCol=SECTOR_COLORS[getSector(s.symbol)]||'#888';
+    const vpStr=JSON.stringify(s.vp).replace(/"/g,"'");
+    return`<div onclick="openChart('${s.symbol}','${s.tf}','${s.type}',${vpStr})" style="display:flex;align-items:center;gap:6px;background:rgba(0,255,178,.06);border:1px solid rgba(0,255,178,.25);padding:3px 10px;cursor:pointer;transition:all .14s" onmouseover="this.style.background='rgba(0,255,178,.12)'" onmouseout="this.style.background='rgba(0,255,178,.06)'">
+      <span style="font-size:.44rem;font-weight:900;color:rgba(0,255,178,.6)">#${i+1}</span>
+      <span style="font-family:'Syne',sans-serif;font-weight:900;font-size:.78rem;color:var(--text)">${sym}</span>
+      <span style="font-size:.44rem;padding:1px 4px;${GRADE_CSS.A}">A</span>
+      <span style="font-size:.46rem;color:var(--muted)">${s.tf.toUpperCase()}</span>
+      <span style="font-size:.46rem;color:${secCol}">${getSector(s.symbol)}</span>
+      <span style="font-size:.46rem;color:var(--acc)">CONF ${s.confluence}/100</span>
+      <span style="font-size:.44rem;color:var(--muted)">${LABEL_MAP[s.type]||s.type}</span>
+    </div>`;
+  }).join('')+
+  `<span style="font-size:.44rem;color:var(--muted);margin-left:auto;align-self:center">A-GRADE ONLY · CLICK TO CHART</span>`;
 }
 
 // 7. R:R CALCULATOR — stop/target based on signal type
@@ -1565,8 +1711,8 @@ function detectSignals(symbol,candles,tf,chg,ts){
       ts:ts||Date.now()};
   };
 
-  // VAH BREAK
-  if(prev.close<=vp.vah&&cur.close>vp.vah){
+  // VAH BREAK — requires close above VAH AND prev candle was below VAH (real break, not gap)
+  if(prev.close<=vp.vah&&cur.close>vp.vah&&cur.open<cur.close*1.08){
     // Check for false break (same level reversed recently)
     if(checkForFalseBreak(candles,vp,'VAH')){
       const key=symbol+'-VAH-'+tf;
@@ -1580,15 +1726,27 @@ function detectSignals(symbol,candles,tf,chg,ts){
       if(s)sigs.push(s);
     }
   }
-  // VAL RECLAIM
+  // VAL RECLAIM — suppress in strong downtrend (LL market structure = dead cat bounce, not a long)
   if(prev.close<vp.val&&cur.close>=vp.val){
+    const counterTrend=trend==='DOWN'&&['LL','LH','CHOCH'].includes(ms);
     const s=makeSig('VAL',resolveType('VAL',div,volTier));
-    if(s)sigs.push(s);
+    if(s){
+      if(counterTrend){
+        // Still show it but heavily penalise and mark as counter-trend
+        s.strength=Math.max(15,Math.round(s.strength*0.6));
+        s.counterTrend=true;
+      }
+      sigs.push(s);
+    }
   }
-  // POC REACT
+  // POC REACT — suppress counter-trend same way
   if(cur.low<=vp.poc*1.003&&cur.close>vp.poc){
+    const counterTrend=trend==='DOWN'&&['LL','LH','CHOCH'].includes(ms);
     const s=makeSig('POC',resolveType('POC',div,volTier));
-    if(s)sigs.push(s);
+    if(s){
+      if(counterTrend){s.strength=Math.max(15,Math.round(s.strength*0.6));s.counterTrend=true;}
+      sigs.push(s);
+    }
   }
   // LIQUIDITY SWEEP standalone
   if(liqSweep&&liqSweep.type==='BULL_SWEEP'&&!sigs.length){
@@ -1682,7 +1840,9 @@ async function triggerAndPoll(){
   newSignals.filter(s=>(s.heat||0)>=4).forEach(s=>alertViaTelegram(s));
   pushHistory(newSignals,new Date().toISOString());updateMarketStructureBar(newSignals);renderBacktest();renderCorrTable();renderWatchlist();
   document.getElementById('stScanned').textContent=pairs.length;document.getElementById('scanTime').textContent='LAST: '+new Date().toLocaleTimeString('en-GB');document.getElementById('stHeat').textContent=newSignals.filter(s=>(s.heat||0)>=4).length;document.getElementById('stMTF').textContent=newSignals.filter(s=>s.mtfCount>=2).length;
-  if(brandNew.length>0)playAlertSound();updateTabBadge(newSignals.length);render();
+  if(brandNew.length>0)playAlertSound();updateTabBadge(newSignals.length);
+  pickBestSetups(allSignals);
+  render();
   renderWinRate();setTimeout(wrCheckOutcomes,2000);
   if(document.getElementById('heatmapView').classList.contains('active'))renderHeatmap();
   setTimeout(()=>prog.classList.remove('show'),800);btn.disabled=false;icon.className='';icon.textContent='⟳';
@@ -1700,6 +1860,8 @@ function render(){
     if(activeSector&&getSector(s.symbol)!==activeSector)return false;
     // Dismissed filter
     const dkey=s.symbol+'-'+s.tf+'-'+s.type;if(dismissedSignals.has(dkey))return false;
+    // Quality filters
+    if(!passesQualityFilters(s))return false;
     return true;});
   renderSectorFilter(allSignals.filter(s=>{// same filters minus sector
     const bt=baseType(s.type);if(!activeTFs.has(s.tf))return false;
@@ -1720,6 +1882,9 @@ function render(){
     const sector=getSector(s.symbol);
     const secCol=SECTOR_COLORS[sector]||'#666';
     const sectorBadge=`<span class="sector-badge" style="background:${secCol}18;color:${secCol};border:1px solid ${secCol}33">${sector}</span>`;
+    const grade=calcGrade(s);
+    const gradeHtml=`<span style="font-size:.44rem;padding:1px 5px;margin-left:3px;${GRADE_CSS[grade]}">${grade}</span>`;
+    const counterBadge=s.counterTrend?`<span style="font-size:.4rem;padding:1px 4px;background:rgba(255,94,58,.12);color:#FF5E3A;border:1px dashed #FF5E3A;margin-left:2px">CT</span>`:'';
     const qaButtons=`<div class="qa-wrap" onclick="event.stopPropagation()">
       <button class="qa-btn star" title="Star & track" onclick="starSignal('${s.symbol}','${s.tf}','${s.type}',event)">${isStarred?'⭐':'☆'}</button>
       <button class="qa-btn dismiss" title="Dismiss" onclick="dismissSignal('${s.symbol}','${s.tf}','${s.type}',event)">✕</button>
@@ -1744,15 +1909,15 @@ function render(){
     const heatBar=renderHeatBar(s.heat||1);const age=getSignalAge(s.ts||Date.now());
     const rr=calcRR(s.price,s.vp,s.type);const rrColor=parseFloat(rr.rr)>=2?'rr-good':parseFloat(rr.rr)>=1?'rr-mid':'rr-bad';
     const note=tradeNotes[s.symbol];const noteDot=note?`<span style="color:var(--poc);font-size:.48rem" title="${note}">📝</span>`:'';
-    const rowClass=`row${isNew?' is-new':''}${inWL?' wl-row':''}${isMTF?' mtf-row':''}${isStarred?' starred':''}`;
-    if(isMobile){return`<div class="${rowClass}" data-sym="${s.symbol}" data-rowkey="${rowKey}" onclick="openChart('${s.symbol}','${s.tf}','${s.type}',${vpStr})"><div class="card-top"><div class="coin"><div class="sym">${sym}${newTag}${mtfTag}${freshTag}${sectorBadge}</div><div class="pair">${s.symbol}${msBadge}${obBadge}${liqBadge}${patternBadge}${huntBadge}${noteDot}</div></div><div style="text-align:right"><div class="price-cell price-live">$${fp(dispPrice)}</div><div class="chg chg-live ${chgCls}">${chgStr}</div></div></div><div class="card-mid"><span class="badge ${s.type}">${bl}</span>${(s.extraBadges||[]).map(t=>`<span class="badge ${t}" style="font-size:.4rem;padding:1px 3px">${LABEL_MAP[t]||t}</span>`).join('')}<span class="tf-tag">${s.tf.toUpperCase()}</span><span class="trend-pill ${s.trend||'NEUTRAL'}">${trendLbl}</span>${qaButtons}</div><div class="card-bot">${heatBar}<div class="str-wrap"><div class="bar-bg"><div class="bar-fg" style="width:${s.strength}%"></div></div><div class="str-n">${s.strength}%</div></div></div></div>`;}
+    const rowClass=`row${isNew?' is-new':''}${inWL?' wl-row':''}${isMTF?' mtf-row':''}${isStarred?' starred':''}${s.counterTrend?' counter-trend':''}`;
+    if(isMobile){return`<div class="${rowClass}" data-sym="${s.symbol}" data-rowkey="${rowKey}" onclick="openChart('${s.symbol}','${s.tf}','${s.type}',${vpStr})"><div class="card-top"><div class="coin"><div class="sym">${sym}${newTag}${mtfTag}${freshTag}${gradeHtml}${sectorBadge}</div><div class="pair">${s.symbol}${msBadge}${obBadge}${liqBadge}${patternBadge}${huntBadge}${noteDot}</div></div><div style="text-align:right"><div class="price-cell price-live">$${fp(dispPrice)}</div><div class="chg chg-live ${chgCls}">${chgStr}</div></div></div><div class="card-mid"><span class="badge ${s.type}">${bl}</span>${(s.extraBadges||[]).map(t=>`<span class="badge ${t}" style="font-size:.4rem;padding:1px 3px">${LABEL_MAP[t]||t}</span>`).join('')}${counterBadge}<span class="tf-tag">${s.tf.toUpperCase()}</span><span class="trend-pill ${s.trend||'NEUTRAL'}">${trendLbl}</span>${qaButtons}</div><div class="card-bot">${heatBar}<div class="str-wrap"><div class="bar-bg"><div class="bar-fg" style="width:${s.strength}%"></div></div><div class="str-n">${s.strength}%</div></div></div></div>`;}
     return`<div class="${rowClass}" data-sym="${s.symbol}" data-rowkey="${rowKey}" style="animation-delay:${i*16}ms" onclick="openChart('${s.symbol}','${s.tf}','${s.type}',${vpStr})">
       <div class="td rank">${qaButtons}</div>
-      <div class="td"><div class="coin"><div class="sym">${sym}${newTag}${mtfTag}${freshTag}${noteDot}</div><div class="pair">${s.symbol}${sectorBadge}${msBadge}${obBadge}${liqBadge}<span class="age-tag ${age.cls}">${age.text}</span></div></div></div>
+      <div class="td"><div class="coin"><div class="sym">${sym}${newTag}${mtfTag}${freshTag}${gradeHtml}${noteDot}</div><div class="pair">${s.symbol}${sectorBadge}${msBadge}${obBadge}${liqBadge}<span class="age-tag ${age.cls}">${age.text}</span></div></div></div>
       <div class="td"><span class="price-cell price-live">$${fp(dispPrice)}</span></div>
       <div class="td"><span class="chg chg-live ${chgCls}">${chgStr}</span></div>
       <div class="td lvl">$${fp(s.vp.vah)}</div><div class="td lvl">$${fp(s.vp.val)}</div><div class="td lvl">$${fp(s.vp.poc)}</div>
-      <div class="td"><span class="badge ${s.type}">${bl}</span>${(s.extraBadges||[]).map(t=>`<span class="badge ${t}" style="font-size:.4rem;padding:1px 3px;margin-left:2px">${LABEL_MAP[t]||t}</span>`).join('')}</div>
+      <div class="td"><span class="badge ${s.type}">${bl}</span>${(s.extraBadges||[]).map(t=>`<span class="badge ${t}" style="font-size:.4rem;padding:1px 3px;margin-left:2px">${LABEL_MAP[t]||t}</span>`).join('')}${counterBadge}</div>
       <div class="td"><span class="tf-tag">${s.tf.toUpperCase()}</span></div>
       <div class="td" style="display:flex;flex-direction:column;gap:2px;align-items:flex-end;"><span class="trend-pill ${s.trend||'NEUTRAL'}">${trendLbl}</span><span class="vol-tier ${s.volTier||'NORMAL'}">${volLbl}</span></div>
       <div class="td">${heatBar}</div>
