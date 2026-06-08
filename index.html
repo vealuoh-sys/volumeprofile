@@ -496,6 +496,7 @@ footer{margin-top:18px;padding-top:10px;border-top:1px solid var(--border);displ
   <button class="group-btn" onclick="togglePanel('corrPanel','corrIco')">⊡ CORR</button>
   <button class="group-btn" onclick="togglePanel('historyWrap','histIco')">📋 HISTORY</button>
   <button class="group-btn" onclick="togglePanel('wrPanel','wrIco')">🏆 WIN RATE</button>
+  <button class="group-btn" onclick="togglePanel('portfolioPanel','portIco')">💼 PORTFOLIO</button>
   <div class="view-toggle">
     <button class="view-btn on" id="viewTable" onclick="setView('table')" title="Table">☰</button>
     <button class="view-btn" id="viewHeat" onclick="setView('heatmap')" title="Heatmap">▦</button>
@@ -545,6 +546,11 @@ footer{margin-top:18px;padding-top:10px;border-top:1px solid var(--border);displ
   <div class="wr-summary" id="wrSummary"><span style="font-size:.54rem;color:var(--muted)">Star signals to track. Outcomes checked after 4H and 24H automatically.</span></div>
   <div id="wrBreakdown" style="padding:0 0 4px;"></div>
   <div class="wr-grid" id="wrGrid"></div>
+</div>
+<div class="panel wr-panel" id="portfolioPanel" style="display:none;">
+  <div class="panel-hdr" onclick="togglePanel('portfolioPanel','portIco')"><span class="panel-title" style="color:#00BFFF">💼 PORTFOLIO HEAT MONITOR — OPEN POSITIONS</span><span class="panel-toggle" id="portIco">▼</span></div>
+  <div class="wr-summary" id="portfolioSummary"></div>
+  <div class="wr-grid" id="portfolioGrid"></div>
 </div>
 <div class="sector-filter-wrap" id="sectorFilterWrap">
   <span class="sector-filter-lbl">SECTOR:</span>
@@ -616,6 +622,8 @@ footer{margin-top:18px;padding-top:10px;border-top:1px solid var(--border);displ
       <div class="ctx-item">ADX <span class="ctx-val" id="ctxADX">—</span></div>
       <div class="ctx-item">PATTERN <span class="ctx-val" id="ctxPattern">—</span></div>
       <div class="ctx-item">CONF <span class="ctx-val" id="ctxConf">—</span></div>
+      <div class="ctx-item">OI <span class="ctx-val" id="ctxOI">—</span></div>
+      <div class="ctx-item">FUND <span class="ctx-val" id="ctxFund">—</span></div>
     </div>
     <div class="rr-panel" id="rrPanel">
       <div class="rr-item"><div class="rr-item-lbl">ENTRY</div><div class="rr-item-val" id="rrEntry">—</div></div>
@@ -1955,12 +1963,16 @@ async function triggerAndPoll(){
   document.getElementById('stScanned').textContent=pairs.length;document.getElementById('scanTime').textContent='LAST: '+new Date().toLocaleTimeString('en-GB');document.getElementById('stHeat').textContent=newSignals.filter(s=>(s.heat||0)>=4).length;document.getElementById('stMTF').textContent=newSignals.filter(s=>s.mtfCount>=2).length;
   if(brandNew.length>0)playAlertSound();updateTabBadge(newSignals.length);
   pickBestSetups(allSignals);
-  render(); // render table immediately
-  // Defer heavy non-critical operations
+  updateBTCCorrelations(); // update corr cache from freshly scanned candles
+  render(); // render table immediately — badges will populate as OI/funding loads
+  // Fetch OI + funding for top signal coins (async, badges update when ready)
+  const topSyms=[...new Set(allSignals.slice(0,60).map(s=>s.symbol))];
+  fetchOIAndFunding(topSyms).then(()=>render()); // re-render with OI/funding badges
   setTimeout(()=>{
     renderBacktest();renderCorrTable();
     updateMarketConditionBar();
     renderWinRate();wrCheckOutcomes();
+    renderPortfolioPanel();
     if(document.getElementById('heatmapView').classList.contains('active'))renderHeatmap();
   },200);
   setTimeout(()=>prog.classList.remove('show'),800);btn.disabled=false;icon.className='';icon.textContent='⟳';
@@ -2027,6 +2039,13 @@ function render(){
     const huntBadge=s.stopHunt?`<span style="font-size:.46rem;padding:1px 4px;color:#FF4081;border:1px solid rgba(255,64,129,.4);background:rgba(255,64,129,.08);animation:pulse 1.5s infinite">${s.stopHunt.label}</span>`:'';
     const emaCrossBadge=s.crossBullish12?'<span style="font-size:.44rem;padding:1px 5px;color:#FF3333;border:1px solid rgba(255,51,51,.5);background:rgba(255,51,51,.1);font-weight:900">BULL CONFIRM</span>':s.crossBullish5?'<span style="font-size:.44rem;padding:1px 5px;color:#FFD700;border:1px solid rgba(255,215,0,.4);background:rgba(255,215,0,.08)">EARLY BULL</span>':s.crossBearish12?'<span style="font-size:.44rem;padding:1px 5px;color:#FF5E3A;border:1px solid rgba(255,94,58,.5);background:rgba(255,94,58,.1);font-weight:900">BEAR CONFIRM</span>':s.earlyWarning?'<span style="font-size:.44rem;padding:1px 5px;color:#FF9500;border:1px solid rgba(255,149,0,.4)">WARN</span>':''
     const adxBadge=s.adx?`<span style="font-size:.44rem;color:${s.adx>25?'var(--acc)':s.adx<20?'var(--vah)':'var(--muted)'}">${s.adx>25?'ADX:TREND':'ADX:CHOP'}</span>`:''
+    // NEW: OI, Funding, BTC Corr, Vol Delta, Liq Cluster badges
+    const oiBadge=getOIBadge(s.symbol);
+    const fundBadge=getFundingBadge(s.symbol);
+    const btcCorrBadge=getBTCCorrBadge(s.symbol);
+    const volDeltaBadge=getVolDeltaBadge(s);
+    const liqClusterBadge=getLiqClusterLabel(s);
+    const extraRow=`<div style="display:flex;gap:3px;flex-wrap:wrap;margin-top:2px">${oiBadge}${fundBadge}${btcCorrBadge}${volDeltaBadge}${liqClusterBadge}</div>`;
     const heatBar=renderHeatBar(s.heat||1);const age=getSignalAge(s.ts||Date.now());
     const rr=calcRR(s.price,s.vp,s.type);const rrColor=parseFloat(rr.rr)>=2?'rr-good':parseFloat(rr.rr)>=1?'rr-mid':'rr-bad';
     const note=tradeNotes[s.symbol];const noteDot=note?`<span style="color:var(--poc);font-size:.48rem" title="${note}">📝</span>`:'';
@@ -2034,7 +2053,7 @@ function render(){
     if(isMobile){return`<div class="${rowClass}" data-sym="${s.symbol}" data-rowkey="${rowKey}" onclick="openChart('${s.symbol}','${s.tf}','${s.type}',${vpStr})"><div class="card-top"><div class="coin"><div class="sym">${sym}${newTag}${mtfTag}${freshTag}${gradeHtml}${sectorBadge}</div><div class="pair">${s.symbol}${msBadge}${obBadge}${liqBadge}${patternBadge}${huntBadge}${noteDot}</div></div><div style="text-align:right"><div class="price-cell price-live">$${fp(dispPrice)}</div><div class="chg chg-live ${chgCls}">${chgStr}</div></div></div><div class="card-mid"><span class="badge ${s.type}">${bl}</span>${(s.extraBadges||[]).map(t=>`<span class="badge ${t}" style="font-size:.4rem;padding:1px 3px">${LABEL_MAP[t]||t}</span>`).join('')}${counterBadge}<span class="tf-tag">${s.tf.toUpperCase()}</span><span class="trend-pill ${s.trend||'NEUTRAL'}">${trendLbl}</span>${qaButtons}</div><div class="card-bot">${heatBar}<div class="str-wrap"><div class="bar-bg"><div class="bar-fg" style="width:${s.strength}%"></div></div><div class="str-n">${s.strength}%</div></div></div></div>`;}
     return`<div class="${rowClass}" data-sym="${s.symbol}" data-rowkey="${rowKey}" style="animation-delay:${i*16}ms" onclick="openChart('${s.symbol}','${s.tf}','${s.type}',${vpStr})">
       <div class="td rank">${qaButtons}</div>
-      <div class="td"><div class="coin"><div class="sym">${sym}${newTag}${mtfTag}${freshTag}${gradeHtml}${noteDot}</div><div class="pair">${s.symbol}${sectorBadge}${msBadge}${obBadge}${liqBadge}<span class="age-tag ${age.cls}">${age.text}</span>${(()=>{const cd=getCooldownRemaining(s.symbol,s.tf);return cd?`<span style="font-size:.4rem;color:var(--muted);margin-left:3px">⏱${cd}</span>`:'';})()}</div></div></div>
+      <div class="td"><div class="coin"><div class="sym">${sym}${newTag}${mtfTag}${freshTag}${gradeHtml}${noteDot}</div><div class="pair">${s.symbol}${sectorBadge}${msBadge}${obBadge}${liqBadge}<span class="age-tag ${age.cls}">${age.text}</span>${(()=>{const cd=getCooldownRemaining(s.symbol,s.tf);return cd?`<span style="font-size:.4rem;color:var(--muted);margin-left:3px">⏱${cd}</span>`:'';})()}</div>${extraRow}</div></div>
       <div class="td"><span class="price-cell price-live">$${fp(dispPrice)}</span></div>
       <div class="td"><span class="chg chg-live ${chgCls}">${chgStr}</span></div>
       <div class="td lvl">$${fp(s.vp.vah)}</div><div class="td lvl">$${fp(s.vp.val)}</div><div class="td lvl">$${fp(s.vp.poc)}</div>
@@ -2105,6 +2124,11 @@ async function loadChartData(symbol,tf,vpHint){
     document.getElementById('ctxVolTier').textContent=volTier;document.getElementById('ctxVolRatio').textContent=volRatio.toFixed(2)+'x';
     document.getElementById('ctxHeat').textContent='🔥'.repeat(heat)+` (${conf.total}/100)`;document.getElementById('ctxMS').textContent=msLabel||'—';
     document.getElementById('ctxOB').textContent=obs.length?obs.map(o=>o.type).join(','):'NONE';document.getElementById('ctxLiq').textContent=liqSweep?liqSweep.label:'NONE';document.getElementById('ctxConf').textContent=conf.total+'/100';
+    // OI + Funding in chart modal
+    const oiD=oiCache[symbol];const fundD=fundCache[symbol];
+    const oiEl=document.getElementById('ctxOI');const fundEl=document.getElementById('ctxFund');
+    if(oiEl&&oiD)oiEl.textContent=`OI ${oiD.oiDir==='UP'?'▲':'▼'}${Math.abs(oiD.oiChg)}%`;
+    if(fundEl&&fundD){fundEl.textContent=`F:${fundD.rate>0?'+':''}${fundD.rate.toFixed(3)}%`;fundEl.style.color=fundD.rate>0.08?'#FF5E3A':fundD.rate<-0.03?'#00FFB2':'var(--muted)';}
     const tEl=document.getElementById('infoTrend');tEl.textContent=trend==='UP'?'↑ UPTREND':trend==='DOWN'?'↓ DOWNTREND':'→ NEUTRAL';tEl.className='info-val '+(trend==='UP'?'trend-up':trend==='DOWN'?'trend-dn':'trend-n');
     const rr=calcRR(last.close,vp,currentSigType||'POC');
     document.getElementById('rrEntry').textContent='$'+fp(rr.entry);document.getElementById('rrStop').textContent='$'+fp(rr.stop);document.getElementById('rrT1').textContent='$'+fp(rr.t1);document.getElementById('rrT2').textContent='$'+fp(rr.t2);
@@ -3307,6 +3331,238 @@ function renderWinRateBreakdown(){
   el.innerHTML=mkTable('BY SIGNAL TYPE',byType)+mkTable('BY TIMEFRAME',byTF)+mkTable('BY SESSION',bySess);
 }
 
+// ══════════════════════════════════════════════════════════════════
+//  FEATURE: OPEN INTEREST + FUNDING RATE
+//  Fetches OI change and funding per coin — Binance futures, free
+// ══════════════════════════════════════════════════════════════════
+const oiCache={};    // sym → {oiChg, oiDir, ts}
+const fundCache={};  // sym → {rate, ts}
+const FAPI='https://fapi.binance.com';
+
+async function fetchOIAndFunding(symbols){
+  // Batch fetch: OI history for each symbol (5m intervals, last 2 = change %)
+  // Funding rate: single endpoint returns all symbols at once
+  try{
+    const [fundRes]=await Promise.all([
+      fetch(`${FAPI}/fapi/v1/premiumIndex`)
+    ]);
+    const fundData=await fundRes.json();
+    if(Array.isArray(fundData)){
+      fundData.forEach(d=>{
+        if(d.symbol&&d.lastFundingRate!==undefined){
+          fundCache[d.symbol]={rate:parseFloat(d.lastFundingRate)*100,ts:Date.now()};
+        }
+      });
+    }
+  }catch(e){}
+  // OI: fetch per symbol in small batches (no bulk endpoint)
+  const toBatch=symbols.slice(0,50); // top 50 signal coins only
+  for(let i=0;i<toBatch.length;i+=10){
+    const batch=toBatch.slice(i,i+10);
+    await Promise.allSettled(batch.map(async sym=>{
+      try{
+        const res=await fetch(`${FAPI}/futures/data/openInterestHist?symbol=${sym}&period=5m&limit=3`);
+        const data=await res.json();
+        if(Array.isArray(data)&&data.length>=2){
+          const latest=parseFloat(data[data.length-1].sumOpenInterest);
+          const prev=parseFloat(data[0].sumOpenInterest);
+          const chgPct=prev>0?((latest-prev)/prev*100):0;
+          oiCache[sym]={oiChg:chgPct.toFixed(2),oiDir:chgPct>0.5?'UP':chgPct<-0.5?'DOWN':'FLAT',ts:Date.now()};
+        }
+      }catch(e){}
+    }));
+    await new Promise(r=>setTimeout(r,100));
+  }
+}
+
+function getOIBadge(sym){
+  const d=oiCache[sym];
+  if(!d)return'';
+  const col=d.oiDir==='UP'?'#00FFB2':d.oiDir==='DOWN'?'#FF5E3A':'#888';
+  const arrow=d.oiDir==='UP'?'▲':d.oiDir==='DOWN'?'▼':'→';
+  return`<span style="font-size:.42rem;padding:1px 4px;background:${col}15;color:${col};border:1px solid ${col}40" title="Open Interest ${d.oiChg>0?'+':''}${d.oiChg}%">OI ${arrow}${Math.abs(d.oiChg)}%</span>`;
+}
+
+function getFundingBadge(sym){
+  const d=fundCache[sym];
+  if(!d)return'';
+  const r=d.rate;
+  // Positive funding = overcrowded long = dangerous for longs
+  // Negative funding = overcrowded short = good for longs
+  const col=r>0.08?'#FF5E3A':r>0.03?'#FFB800':r<-0.03?'#00FFB2':'#888';
+  const warn=r>0.08?' ⚠':'';
+  return`<span style="font-size:.42rem;padding:1px 4px;background:${col}15;color:${col};border:1px solid ${col}40" title="Funding Rate: ${r>0?'+':''}${r.toFixed(4)}%">F:${r>0?'+':''}${r.toFixed(3)}%${warn}</span>`;
+}
+
+// ── BTC CORRELATION PER SIGNAL ────────────────────────────────────
+const btcCorrCache={};  // sym → corr value
+
+function updateBTCCorrelations(){
+  const btcCandles=candleCache['BTCUSDT-1h'];
+  if(!btcCandles||btcCandles.length<20)return;
+  const btcCloses=btcCandles.map(c=>c.close);
+  Object.keys(candleCache).filter(k=>k.endsWith('-1h')).forEach(key=>{
+    const sym=key.replace('-1h','');
+    if(sym==='BTCUSDT')return;
+    const closes=(candleCache[key]||[]).map(c=>c.close);
+    const minLen=Math.min(btcCloses.length,closes.length);
+    if(minLen<15)return;
+    btcCorrCache[sym]=calcCorrelation(btcCloses.slice(-minLen),closes.slice(-minLen));
+  });
+}
+
+function getBTCCorrBadge(sym){
+  if(sym==='BTCUSDT')return'';
+  const corr=btcCorrCache[sym];
+  if(corr===undefined)return'';
+  const v=corr.toFixed(2);
+  // High corr = dangerous to trade against BTC direction
+  const col=corr>0.8?'#FF5E3A':corr>0.5?'#FFB800':'#00FFB2';
+  const label=corr>0.8?'HIGH':corr>0.5?'MED':'LOW';
+  return`<span style="font-size:.42rem;padding:1px 4px;background:${col}12;color:${col};border:1px solid ${col}35" title="BTC Correlation: ${v}">BTC${label}</span>`;
+}
+
+// ── LIQUIDATION CLUSTER ───────────────────────────────────────────
+// Approximate liq cluster from OI + price action
+// Real liq data = where stops are sitting = high OI zones near key levels
+function getLiqClusterLabel(s){
+  if(!s.vp||!s.price)return'';
+  const oi=oiCache[s.symbol];
+  if(!oi)return'';
+  // If OI rising and price approaching VAH = liq cluster above
+  if(oi.oiDir==='UP'&&Math.abs(s.price-s.vp.vah)/s.price<0.02){
+    return`<span style="font-size:.42rem;padding:1px 4px;color:#FF4081;border:1px solid rgba(255,64,129,.4);background:rgba(255,64,129,.07)" title="Liquidation cluster near VAH">LIQ✦</span>`;
+  }
+  // If OI rising and price near VAL = liq cluster below
+  if(oi.oiDir==='UP'&&Math.abs(s.price-s.vp.val)/s.price<0.02){
+    return`<span style="font-size:.42rem;padding:1px 4px;color:#FF9500;border:1px solid rgba(255,149,0,.4);background:rgba(255,149,0,.07)" title="Liquidation cluster near VAL">LIQ✦</span>`;
+  }
+  return'';
+}
+
+// ── VOLUME DELTA BADGE ────────────────────────────────────────────
+function getVolDeltaBadge(s){
+  if(!s.volDelta)return'';
+  const{buyPct,label}=s.volDelta;
+  if(!buyPct||label==='NEUTRAL')return'';
+  const isBuy=buyPct>65;
+  const col=isBuy?'#00FFB2':'#FF5E3A';
+  const arrow=isBuy?'▲':'▼';
+  return`<span style="font-size:.42rem;padding:1px 4px;background:${col}12;color:${col};border:1px solid ${col}35" title="Volume Delta: ${buyPct}% buy pressure">${arrow}${buyPct}% ${isBuy?'BUY':'SELL'}</span>`;
+}
+
+// ══════════════════════════════════════════════════════════════════
+//  FEATURE: PORTFOLIO HEAT MONITOR
+// ══════════════════════════════════════════════════════════════════
+let portfolioTrades=JSON.parse(localStorage.getItem('vpPortfolio')||'[]');
+
+function renderPortfolioPanel(){
+  const grid=document.getElementById('portfolioGrid');
+  const summary=document.getElementById('portfolioSummary');
+  if(!grid||!summary)return;
+  if(!portfolioTrades.length){
+    summary.innerHTML='<span style="font-size:.54rem;color:var(--muted)">No open trades. Add positions to monitor portfolio risk.</span>';
+    grid.innerHTML=`<div style="padding:10px 13px">
+      <div style="font-size:.52rem;color:var(--muted);margin-bottom:8px">ADD OPEN TRADE:</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+        <input id="ptSymInput" placeholder="BTCUSDT" style="background:var(--s2);border:1px solid var(--border2);color:var(--text);font-family:'Space Mono',monospace;font-size:.54rem;padding:4px 8px;width:100px;outline:none">
+        <input id="ptEntryInput" placeholder="Entry $" type="number" style="background:var(--s2);border:1px solid var(--border2);color:var(--acc);font-family:'Space Mono',monospace;font-size:.54rem;padding:4px 8px;width:90px;outline:none">
+        <input id="ptSizeInput" placeholder="Size $" type="number" style="background:var(--s2);border:1px solid var(--border2);color:var(--warn);font-family:'Space Mono',monospace;font-size:.54rem;padding:4px 8px;width:90px;outline:none">
+        <input id="ptStopInput" placeholder="Stop $" type="number" style="background:var(--s2);border:1px solid var(--border2);color:var(--vah);font-family:'Space Mono',monospace;font-size:.54rem;padding:4px 8px;width:90px;outline:none">
+        <button onclick="addPortfolioTrade()" style="background:rgba(0,255,178,.1);border:1px solid var(--acc);color:var(--acc);font-family:'Space Mono',monospace;font-size:.52rem;padding:4px 12px;cursor:pointer">+ ADD</button>
+      </div>
+    </div>`;
+    return;
+  }
+  // Calculate portfolio metrics
+  let totalSize=0,totalRisk=0,btcCorrSum=0,corrCount=0;
+  const sectors={};
+  portfolioTrades.forEach(t=>{
+    totalSize+=t.size||0;
+    if(t.entry&&t.stop&&t.size){
+      const riskPct=Math.abs((t.entry-t.stop)/t.entry);
+      totalRisk+=t.size*riskPct;
+    }
+    const corr=btcCorrCache[t.symbol];
+    if(corr!==undefined){btcCorrSum+=corr;corrCount++;}
+    const sec=getSector(t.symbol);
+    sectors[sec]=(sectors[sec]||0)+(t.size||0);
+  });
+  const avgCorr=corrCount?btcCorrSum/corrCount:null;
+  const topSector=Object.entries(sectors).sort((a,b)=>b[1]-a[1])[0];
+  const sectorConc=topSector?(topSector[1]/totalSize*100).toFixed(0):0;
+  const riskPct=totalSize?(totalRisk/totalSize*100).toFixed(2):0;
+  // Warnings
+  const warnings=[];
+  if(avgCorr!==null&&avgCorr>0.8)warnings.push('⚠ HIGH BTC CORRELATION — portfolio moves as one');
+  if(sectorConc>60)warnings.push(`⚠ SECTOR CONCENTRATION: ${sectorConc}% in ${topSector[0]}`);
+  if(parseFloat(riskPct)>3)warnings.push(`⚠ HIGH RISK EXPOSURE: ${riskPct}% of portfolio at risk`);
+  const warnHtml=warnings.map(w=>`<div style="font-size:.5rem;color:#FFB800;padding:2px 13px">${w}</div>`).join('');
+  const corrCol=avgCorr===null?'var(--muted)':avgCorr>0.8?'#FF5E3A':avgCorr>0.5?'#FFB800':'#00FFB2';
+  summary.innerHTML=`
+    <div class="wr-sum-item"><div class="wr-sum-lbl">POSITIONS</div><div class="wr-sum-val">${portfolioTrades.length}</div></div>
+    <div class="wr-sum-item"><div class="wr-sum-lbl">TOTAL SIZE</div><div class="wr-sum-val">$${totalSize.toLocaleString()}</div></div>
+    <div class="wr-sum-item"><div class="wr-sum-lbl">TOTAL RISK</div><div class="wr-sum-val" style="color:${parseFloat(riskPct)>3?'#FF5E3A':'var(--acc)'}">$${totalRisk.toFixed(0)} (${riskPct}%)</div></div>
+    <div class="wr-sum-item"><div class="wr-sum-lbl">AVG BTC CORR</div><div class="wr-sum-val" style="color:${corrCol}">${avgCorr!==null?avgCorr.toFixed(2):'—'}</div></div>
+    <div class="wr-sum-item"><div class="wr-sum-lbl">TOP SECTOR</div><div class="wr-sum-val" style="font-size:.7rem">${topSector?topSector[0]+' '+sectorConc+'%':'—'}</div></div>
+    <div class="wr-sum-item" style="margin-left:auto"><button onclick="portfolioTrades=[];localStorage.removeItem('vpPortfolio');renderPortfolioPanel()" style="background:transparent;border:1px solid var(--border);color:var(--muted);font-family:'Space Mono',monospace;font-size:.5rem;padding:3px 8px;cursor:pointer">CLEAR ALL</button></div>
+    ${warnHtml?'</div><div style="display:flex;flex-direction:column;gap:2px;padding:4px 0">'+warnHtml:''}
+  `;
+  const addForm=`<div style="padding:8px 13px;border-top:1px solid var(--border);display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+    <span style="font-size:.48rem;color:var(--muted)">ADD:</span>
+    <input id="ptSymInput" placeholder="BTCUSDT" style="background:var(--s2);border:1px solid var(--border2);color:var(--text);font-family:'Space Mono',monospace;font-size:.52rem;padding:3px 6px;width:90px;outline:none">
+    <input id="ptEntryInput" placeholder="Entry $" type="number" style="background:var(--s2);border:1px solid var(--border2);color:var(--acc);font-family:'Space Mono',monospace;font-size:.52rem;padding:3px 6px;width:80px;outline:none">
+    <input id="ptSizeInput" placeholder="Size $" type="number" style="background:var(--s2);border:1px solid var(--border2);color:var(--warn);font-family:'Space Mono',monospace;font-size:.52rem;padding:3px 6px;width:80px;outline:none">
+    <input id="ptStopInput" placeholder="Stop $" type="number" style="background:var(--s2);border:1px solid var(--border2);color:var(--vah);font-family:'Space Mono',monospace;font-size:.52rem;padding:3px 6px;width:80px;outline:none">
+    <button onclick="addPortfolioTrade()" style="background:rgba(0,255,178,.1);border:1px solid var(--acc);color:var(--acc);font-family:'Space Mono',monospace;font-size:.5rem;padding:3px 10px;cursor:pointer">+ADD</button>
+  </div>`;
+  grid.innerHTML=addForm+portfolioTrades.map((t,i)=>{
+    const sym=t.symbol.replace('USDT','');
+    const lp=livePrices[t.symbol];
+    const curPrice=lp?lp.price:t.entry;
+    const pnlPct=t.entry?((curPrice-t.entry)/t.entry*100).toFixed(2):null;
+    const pnlDol=t.size&&t.entry?((curPrice-t.entry)/t.entry*t.size).toFixed(0):null;
+    const pnlCol=pnlPct>=0?'var(--acc)':'var(--vah)';
+    const corr=btcCorrCache[t.symbol];
+    const corrCol=corr===undefined?'var(--muted)':corr>0.8?'#FF5E3A':corr>0.5?'#FFB800':'#00FFB2';
+    const sec=getSector(t.symbol);
+    const secCol=SECTOR_COLORS[sec]||'#888';
+    return`<div class="wr-card">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div class="wr-sym">${sym}</div>
+        <div style="display:flex;gap:4px">
+          <span class="sector-badge" style="background:${secCol}22;color:${secCol};border:1px solid ${secCol}44">${sec}</span>
+          <button onclick="removePortfolioTrade(${i})" style="background:transparent;border:none;color:var(--muted);cursor:pointer;font-size:.6rem">✕</button>
+        </div>
+      </div>
+      <div class="wr-meta">Entry: $${fp(t.entry)} · Size: $${t.size?.toLocaleString()||'—'} · Stop: $${fp(t.stop)}</div>
+      <div style="font-size:.52rem">Current: <span style="color:var(--text)">$${fp(curPrice)}</span></div>
+      ${pnlPct!==null?`<div style="font-size:.64rem;font-weight:700;color:${pnlCol}">${pnlPct>0?'+':''}${pnlPct}% / ${pnlDol>0?'+':''}$${pnlDol}</div>`:''}
+      <div style="font-size:.44rem;color:${corrCol}">BTC CORR: ${corr!==undefined?corr.toFixed(2):'—'}</div>
+    </div>`;
+  }).join('');
+}
+
+function addPortfolioTrade(){
+  const sym=(document.getElementById('ptSymInput')?.value||'').toUpperCase().trim();
+  const entry=parseFloat(document.getElementById('ptEntryInput')?.value||0);
+  const size=parseFloat(document.getElementById('ptSizeInput')?.value||0);
+  const stop=parseFloat(document.getElementById('ptStopInput')?.value||0);
+  if(!sym)return;
+  portfolioTrades.push({symbol:sym.includes('USDT')?sym:sym+'USDT',entry,size,stop,ts:Date.now()});
+  localStorage.setItem('vpPortfolio',JSON.stringify(portfolioTrades));
+  renderPortfolioPanel();
+}
+
+function removePortfolioTrade(i){
+  portfolioTrades.splice(i,1);
+  localStorage.setItem('vpPortfolio',JSON.stringify(portfolioTrades));
+  renderPortfolioPanel();
+}
+
+// Update portfolio PnL from live prices every 30s
+setInterval(()=>{if(portfolioTrades.length)renderPortfolioPanel();},30000);
+
 // INIT
 window.addEventListener('DOMContentLoaded',()=>{
   const saved=localStorage.getItem('vpTheme')||'dark';document.documentElement.setAttribute('data-theme',saved);document.getElementById('themeBtn').textContent=saved==='dark'?'🌙':'☀️';
@@ -3317,7 +3573,7 @@ window.addEventListener('DOMContentLoaded',()=>{
   const tgT=localStorage.getItem('tgToken'),tgC=localStorage.getItem('tgChat');
   if(tgT)document.getElementById('tgToken').value=tgT;if(tgC)document.getElementById('tgChat').value=tgC;
   document.getElementById('warnBtn').style.opacity='0.45';document.getElementById('mtfBtn').style.opacity='0.45';
-  renderGroupsPanel();renderWatchlist();renderAlerts();renderWinRate();
+  renderGroupsPanel();renderWatchlist();renderAlerts();renderWinRate();renderPortfolioPanel();
   updateSessionBar();setInterval(updateSessionBar,30000);
   startWebSocket();startWebSocket2();checkDominance();triggerAndPoll();setInterval(triggerAndPoll,30*60*1000);
   updateMarketConditionBar();setInterval(updateMarketConditionBar,5*60*1000);
