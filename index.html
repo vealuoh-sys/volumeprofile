@@ -728,12 +728,14 @@ const DEFAULT_PAIRS=[
   'LISTAUSDT','BOMEUSDT','TURBOUSDT','MEWUSDT','PEPEUSDT','WIFUSDT','BONKUSDT','FLOKIUSDT','CFXUSDT','CKBUSDT',
   'KAIAUSDT','MOVEUSDT','MEUSDT','AEROUSDT','MORPHOUSDT','SCRUSDT','BERAUSDT','STORYUSDT','INITUSDT','PNUTUSDT',
   'ACTUSDT','GRASSUSDT','HYPEUSDT','SOLVUSDT','XDCUSDT','POLUSDT','ONDOUSDT','UXLINKUSDT','LAYERUSDT','BIOUSDT',
-  'VINEUSDT','NEIROUSDT','DEGOUSDT','LPTUSDT','AEVOUSDT','OMNIUSDT','SAGAUSDT','VANRYUSDT','ETHFIUSDT','XAIUSDT','MANTAUSDT','FRONTUSDT','NFPUSDT','AIUSDT',
-  'WOOUSDT','SFPUSDT','BANDUSDT','OCEANUSDT','LRCUSDT','STORJUSDT','ANKRUSDT','BATUSDT','CHZUSDT','ENJUSDT',
-  'ONTUSDT','ZECUSDT','DASHUSDT','QTUMUSDT','IOSTUSDT','RVNUSDT','ZILUSDT','HOTUSDT','SONICUSDT','COSUSDT',
-  'SPELLUSDT','COTIUSDT','XVSUSDT','ALPACAUSDT','IDUSDT','JOEUSDT','HIGHUSDT','CVXUSDT','PYRUSDT','STPTUSDT',
-  'NKNUSDT','CTSIUSDT','VOXELUSDT','SYSUSDT','RADUSDT','KDAUSDT','FLMUSDT','REEFUSDT','CELOUSDT',
-  'TRUUSDT','LOOMUSDT','WANUSDT','KAVAUSDT','CLVUSDT','IDEXUSDT','BURGERUSDT','ALPINEUSDT'
+  'VINEUSDT','NEIROUSDT','DEGOUSDT','LPTUSDT','AEVOUSDT','OMNIUSDT','SAGAUSDT','VANRYUSDT','ETHFIUSDT','XAIUSDT',
+  'MANTAUSDT','FRONTUSDT','NFPUSDT','AIUSDT','WOOUSDT','SFPUSDT','BANDUSDT','OCEANUSDT','LRCUSDT','STORJUSDT',
+  'ANKRUSDT','BATUSDT','CHZUSDT','ENJUSDT','ONTUSDT','ZECUSDT','DASHUSDT','QTUMUSDT','IOSTUSDT','RVNUSDT',
+  'ZILUSDT','HOTUSDT','SONICUSDT','COSUSDT','SPELLUSDT','COTIUSDT','XVSUSDT','ALPACAUSDT','IDUSDT','JOEUSDT',
+  'HIGHUSDT','CVXUSDT','PYRUSDT','STPTUSDT','NKNUSDT','CTSIUSDT','VOXELUSDT','SYSUSDT','RADUSDT','KDAUSDT',
+  'FLMUSDT','REEFUSDT','CELOUSDT','TRUUSDT','LOOMUSDT','WANUSDT','KAVAUSDT','CLVUSDT','IDEXUSDT','BURGERUSDT',
+  'ALPINEUSDT','MASKUSDT','OMUSDT','MYROUSDT','AUCTIONUSDT','PEOPLEUSDT','DENTUSDT','PERPUSDT','MEMEUSDT','SATSUSDT',
+  'ACAUSDT','XVGUSDT','ACHUSDT','BNTUSDT','DUSKUSDT','FORTHUSDT','GTCUSDT','KEYUSDT','LUNCUSDT','PONDUSDT'
 ];
 
 // STATE
@@ -1714,7 +1716,7 @@ function updateMarketStructureBar(signals){const bull=signals.filter(s=>s.ms&&['
 function renderHeatmap(){const el=document.getElementById('heatmapView');const sigMap={};allSignals.forEach(s=>{if(!sigMap[s.symbol]||s.heat>sigMap[s.symbol].heat)sigMap[s.symbol]=s;});const pairs=scanPairs().slice(0,80);el.innerHTML=pairs.map(sym=>{const s=sigMap[sym];const lp=livePrices[sym];const chg=lp?lp.chg:(s?s.chg:0);const heat=s?s.heat:0;const chgStr=(chg>=0?'+':'')+chg.toFixed(1)+'%';const chgColor=chg>=0?'var(--acc)':'var(--vah)';const heatColor=heat>=4?'var(--heat5)':heat>=3?'var(--heat3)':heat>=2?'var(--heat2)':heat>0?'var(--heat1)':'var(--border)';const bg=heat?`rgba(${heat>=4?'255,23,68':heat>=3?'255,214,0':heat>=2?'105,240,174':'0,176,255'},.${heat*2})`:'var(--s2)';return`<div class="hm-cell" style="background:${bg};border-color:${s?heatColor:'var(--border)'}" onclick="openChart('${sym}','1h','${s?s.type:'POC'}',${s?JSON.stringify(s.vp).replace(/"/g,"'"):'null'})"><div class="hm-sym">${sym.replace('USDT','')}</div><div class="hm-chg" style="color:${chgColor}">${chgStr}</div>${heat?`<div class="hm-heat" style="background:${heatColor}"></div>`:''}</div>`;}).join('');}
 
 // FETCH
-async function fetchCandles(symbol,interval,limit=120){const url=`${BINANCE}/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`;const res=await fetch(url);const raw=await res.json();if(!Array.isArray(raw))throw new Error('Bad response');return raw.map(k=>({time:parseInt(k[0]),open:parseFloat(k[1]),high:parseFloat(k[2]),low:parseFloat(k[3]),close:parseFloat(k[4]),volume:parseFloat(k[5]),typical:(parseFloat(k[2])+parseFloat(k[3])+parseFloat(k[4]))/3}));}
+async function fetchCandles(symbol,interval,limit=80){const url=`${BINANCE}/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`;const res=await fetch(url);const raw=await res.json();if(!Array.isArray(raw))throw new Error('Bad response');return raw.map(k=>({time:parseInt(k[0]),open:parseFloat(k[1]),high:parseFloat(k[2]),low:parseFloat(k[3]),close:parseFloat(k[4]),volume:parseFloat(k[5]),typical:(parseFloat(k[2])+parseFloat(k[3])+parseFloat(k[4]))/3}));}
 
 // DETECT SIGNALS (all engines combined)
 function detectSignals(symbol,candles,tf,chg,ts){
@@ -1739,6 +1741,7 @@ function detectSignals(symbol,candles,tf,chg,ts){
   const ema20arr=ema12arr,ema50arr=ema53arr; // compat aliases
   candles.forEach((c,i)=>{c.ema5=ema5arr[i];c.ema12=ema12arr[i];c.ema16=ema16arr[i];c.ema40=ema40arr[i];c.ema53=ema53arr[i];c.ema20=ema12arr[i];c.ema50=ema53arr[i];});
   const curr=candles.length-1,cur=candles[curr],prev=candles[curr-1];
+  const atrVal=calcATR(candles); // compute ONCE, reused by all signals
 
   // Proximity detection (approaching but not yet triggered)
   const prox=detectProximity(symbol,candles,tf);
@@ -1787,14 +1790,13 @@ function detectSignals(symbol,candles,tf,chg,ts){
       liqSweep,sr,obs,fvgs,volDelta,
       pattern:pattern?pattern.pattern:null,
       stopHunt,adx,mtfZones,
-      atr:calcATR(candles),
-      entryZone:calcEntryZone(cur.close,vp,bt,calcATR(candles)),
+      atr:atrVal,
+      entryZone:calcEntryZone(cur.close,vp,bt,atrVal),
       ts:ts||Date.now()};
   };
 
   // VAH BREAK — requires close above VAH AND prev candle was below VAH (real break, not gap)
-  if(prev.close<=vp.vah&&cur.close>vp.vah&&cur.open<cur.close*1.08){
-    // Check for false break (same level reversed recently)
+  if(prev.close<=vp.vah&&cur.close>vp.vah&&cur.open<cur.close*1.08){    // Check for false break (same level reversed recently)
     if(checkForFalseBreak(candles,vp,'VAH')){
       const key=symbol+'-VAH-'+tf;
       falseBreakMemory.set(key,(falseBreakMemory.get(key)||0)+1);
@@ -1834,6 +1836,36 @@ function detectSignals(symbol,candles,tf,chg,ts){
     const s=makeSig('VAL','VAL_SPIKE');
     if(s)sigs.push({...s,heat:Math.min(5,(s.heat||1)+1)});
   }
+  // EMA CROSSOVER SIGNALS — inside detectSignals so no double EMA pass
+  // Uses already-computed crossBullish5/12 from detectTrend above
+  const n=candles.length-1;
+  if(crossBullish5&&!isDuplicateSignal(symbol,'EARLY_BULL',tf)){
+    sigs.push({symbol,price:cur.close,vp,tf,type:'EARLY_BULL',trend,volTier,volRatio,
+      ema5,ema12,ema53,chg,strength:52,confluence:48,confluenceFactors:[],
+      heat:2,ms,msLabel,freshness:'HOT',session:getCurrentSession().session,
+      liqSweep:null,sr:[],obs:[],fvgs:[],volDelta:{buyPct:50,label:'NEUTRAL'},
+      pattern:null,stopHunt:null,adx,mtfZones:[],atr:atrVal,
+      entryZone:calcEntryZone(cur.close,vp,'VAL',atrVal),
+      counterTrend:false,ts:ts||Date.now()});
+  }
+  if(crossBullish12&&!isDuplicateSignal(symbol,'BULL_CONFIRM',tf)){
+    sigs.push({symbol,price:cur.close,vp,tf,type:'BULL_CONFIRM',trend,volTier,volRatio,
+      ema5,ema12,ema53,chg,strength:68,confluence:62,confluenceFactors:[],
+      heat:3,ms,msLabel,freshness:'HOT',session:getCurrentSession().session,
+      liqSweep:null,sr:[],obs:[],fvgs:[],volDelta:{buyPct:50,label:'NEUTRAL'},
+      pattern:null,stopHunt:null,adx,mtfZones:[],atr:atrVal,
+      entryZone:calcEntryZone(cur.close,vp,'VAL',atrVal),
+      counterTrend:false,ts:ts||Date.now()});
+  }
+  if(showEarlyBear&&crossBearish5&&!isDuplicateSignal(symbol,'EARLY_BEAR',tf)){
+    sigs.push({symbol,price:cur.close,vp,tf,type:'EARLY_BEAR',trend,volTier,volRatio,
+      ema5,ema12,ema53,chg,strength:35,confluence:30,confluenceFactors:[],
+      heat:1,ms,msLabel,freshness:'HOT',session:getCurrentSession().session,
+      liqSweep:null,sr:[],obs:[],fvgs:[],volDelta:{buyPct:50,label:'NEUTRAL'},
+      pattern:null,stopHunt:null,adx,mtfZones:[],atr:atrVal,
+      entryZone:calcEntryZone(cur.close,vp,'VAH',atrVal),
+      counterTrend:false,ts:ts||Date.now()});
+  }
   return sigs;
 }
 
@@ -1864,7 +1896,7 @@ async function triggerAndPoll(){
   async function fetchTF(sym, tf, tries=2){
     for(let attempt=0;attempt<tries;attempt++){
       try{
-        const res=await fetch(`${BINANCE}/api/v3/klines?symbol=${sym}&interval=${tf}&limit=120`);
+        const res=await fetch(`${BINANCE}/api/v3/klines?symbol=${sym}&interval=${tf}&limit=80`);
         if(res.status===429||res.status===418){
           await new Promise(r=>setTimeout(r,1500*(attempt+1)));continue;
         }
@@ -1887,14 +1919,14 @@ async function triggerAndPoll(){
     const results=[];
     const chg=chgCache[sym]||0;
     const now=Date.now(); // per-coin timestamp so age is accurate
-    if(c1h){candleCache[sym+'-1h']=c1h;try{results.push(...detectSignals(sym,c1h,'1h',chg,now));}catch(e){}try{results.push(...checkEMACrossoverSignals(sym,c1h,'1h',chg));}catch(e){}}
-    if(c4h){candleCache[sym+'-4h']=c4h;try{results.push(...detectSignals(sym,c4h,'4h',chg,now));}catch(e){}try{results.push(...checkEMACrossoverSignals(sym,c4h,'4h',chg));}catch(e){}}
-    if(c1d){candleCache[sym+'-1d']=c1d;try{results.push(...detectSignals(sym,c1d,'1d',chg,now));}catch(e){}try{results.push(...checkEMACrossoverSignals(sym,c1d,'1d',chg));}catch(e){}}
+    if(c1h){candleCache[sym+'-1h']=c1h;try{results.push(...detectSignals(sym,c1h,'1h',chg,now));}catch(e){}}
+    if(c4h){candleCache[sym+'-4h']=c4h;try{results.push(...detectSignals(sym,c4h,'4h',chg,now));}catch(e){}}
+    if(c1d){candleCache[sym+'-1d']=c1d;try{results.push(...detectSignals(sym,c1d,'1d',chg,now));}catch(e){}}
     return results;
   }
 
   const scanStartTs=Date.now();
-  const BATCH=20; // 20 coins × 3 TFs = 60 parallel requests per batch — max speed within Binance limits
+  const BATCH=25; // 25 coins × 3 TFs = 75 parallel requests per batch
 
   for(let i=0;i<pairs.length;i+=BATCH){
     const batch=pairs.slice(i,i+BATCH);
@@ -1905,7 +1937,7 @@ async function triggerAndPoll(){
     ptxt.textContent=`SCANNING… ${done} / ${pairs.length} COINS`;
     // 80ms gap between batches: 200 coins / 20 batch = 10 batches × 80ms = ~0.8s pure wait
     // + network = ~10-15 second total scan. Binance 1200 weight/min limit is safe.
-    if(i+BATCH<pairs.length) await new Promise(r=>setTimeout(r,80));
+    if(i+BATCH<pairs.length) await new Promise(r=>setTimeout(r,60));
   }
   const mtfMap=buildMTFMap(newSignals);newSignals.forEach(s=>{s.mtfCount=(mtfMap[s.symbol]?.size||0);});
   // Merge duplicate signals: same symbol+TF → one row with extra badges
@@ -1923,10 +1955,14 @@ async function triggerAndPoll(){
   document.getElementById('stScanned').textContent=pairs.length;document.getElementById('scanTime').textContent='LAST: '+new Date().toLocaleTimeString('en-GB');document.getElementById('stHeat').textContent=newSignals.filter(s=>(s.heat||0)>=4).length;document.getElementById('stMTF').textContent=newSignals.filter(s=>s.mtfCount>=2).length;
   if(brandNew.length>0)playAlertSound();updateTabBadge(newSignals.length);
   pickBestSetups(allSignals);
-  render();
-  updateMarketConditionBar();
-  renderWinRate();setTimeout(wrCheckOutcomes,2000);
-  if(document.getElementById('heatmapView').classList.contains('active'))renderHeatmap();
+  render(); // render table immediately
+  // Defer heavy non-critical operations
+  setTimeout(()=>{
+    renderBacktest();renderCorrTable();
+    updateMarketConditionBar();
+    renderWinRate();wrCheckOutcomes();
+    if(document.getElementById('heatmapView').classList.contains('active'))renderHeatmap();
+  },200);
   setTimeout(()=>prog.classList.remove('show'),800);btn.disabled=false;icon.className='';icon.textContent='⟳';
   if(brandNew.length>0)showToast(`🔔 ${brandNew.length} NEW SIGNAL${brandNew.length>1?'S':''}!`);
   checkDominance(); // update BTC/USDT dominance after scan
@@ -2028,7 +2064,15 @@ async function openChart(symbol,tf,sigType,vp){
 
 async function loadChartData(symbol,tf,vpHint){
   try{
-    const candles=await fetchCandles(symbol,tf,120);const vp=calcVP(candles)||vpHint;if(!vp)throw new Error('No VP');
+    // Use cached candles from scan if available (avoids redundant network fetch)
+    const cacheKey=symbol+'-'+tf;
+    let candles=candleCache[cacheKey];
+    if(!candles||candles.length<10){
+      // Not in cache — fetch fresh (happens on first open or TF switch before scan)
+      candles=await fetchCandles(symbol,tf,80);
+      candleCache[cacheKey]=candles;
+    }
+    const vp=calcVP(candles)||vpHint;if(!vp)throw new Error('No VP');
     const rsiVals=calcRSI(candles);
     const trendObj=detectTrend(candles);
     const{trend,ema5:lema5,ema12:lema12,ema16:lema16,ema53:lema53,crossBullish5,crossBullish12,crossBearish5,crossBearish12,earlyWarning,fullBullConfirm,fullBearConfirm}=trendObj;
