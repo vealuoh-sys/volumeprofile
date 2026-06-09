@@ -1982,7 +1982,12 @@ async function triggerAndPoll(){
 
 // RENDER TABLE
 function render(){
-  document.getElementById('stVAH').textContent=allSignals.filter(s=>baseType(s.type)==='VAH').length;document.getElementById('stVAL').textContent=allSignals.filter(s=>baseType(s.type)==='VAL').length;document.getElementById('stPOC').textContent=allSignals.filter(s=>baseType(s.type)==='POC').length;document.getElementById('stTotal').textContent=allSignals.length;
+  document.getElementById('stVAH').textContent=allSignals.filter(s=>baseType(s.type)==='VAH').length;
+  document.getElementById('stVAL').textContent=allSignals.filter(s=>baseType(s.type)==='VAL').length;
+  document.getElementById('stPOC').textContent=allSignals.filter(s=>baseType(s.type)==='POC').length;
+  document.getElementById('stTotal').textContent=allSignals.length;
+  const mtfEl=document.getElementById('stMTF');if(mtfEl)mtfEl.textContent=allSignals.filter(s=>(s.mtfCount||0)>=2).length;
+  const heatEl=document.getElementById('stHeat');if(heatEl)heatEl.textContent=allSignals.filter(s=>(s.heat||0)>=4).length;
   const query=(document.getElementById('coinSearch').value||'').toUpperCase().trim();
   let filtered=allSignals.filter(s=>{const bt=baseType(s.type);if(!activeTFs.has(s.tf))return false;if(s.type==='WARNING')return showWarnings;
     if(s.type==='EARLY_BULL'||s.type==='BULL_CONFIRM')return true; // always show bull EMA signals
@@ -2008,7 +2013,17 @@ function render(){
   const rows=document.getElementById('rows');
   if(!filtered.length){rows.innerHTML=`<div class="empty"><div class="empty-ico">◈</div><div class="empty-txt">NO SIGNALS MATCH FILTERS</div></div>`;return;}
   const isMobile=window.innerWidth<=600;
-  rows.innerHTML=filtered.map((s,i)=>{
+  try{
+    rows.innerHTML=filtered.map((s,i)=>{
+      try{return renderRow(s,i,isMobile);}
+      catch(e){console.error('Row render error:',s.symbol,e);return'';}
+    }).join('');
+  }catch(e){
+    console.error('Render crash:',e);
+    rows.innerHTML='<div class="empty"><div class="empty-ico">⚠</div><div class="empty-txt">RENDER ERROR — CHECK CONSOLE</div></div>';
+  }
+}
+function renderRow(s,i,isMobile){
     const sym=s.symbol.replace('USDT',''),bl=LABEL_MAP[s.type]||s.type,vpStr=JSON.stringify(s.vp).replace(/"/g,"'");
     const rowKey=s.symbol+'-'+s.tf+'-'+s.type;
     const isStarred=starredSignals.has(rowKey);
@@ -2065,7 +2080,6 @@ function render(){
       <div class="td"><div class="rr-cell"><span class="rr-val ${rrColor}">1:${rr.rr}</span><span class="rr-lbl">−${rr.riskPct}%</span></div></div>
       <div class="td"><div class="str-wrap"><div class="bar-bg"><div class="bar-fg" style="width:${s.strength}%"></div></div><div class="str-n">${s.strength}%</div></div></div>
     </div>`;
-  }).join('');
 }
 
 // CHART MODAL
