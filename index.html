@@ -1963,11 +1963,11 @@ async function triggerAndPoll(){
   document.getElementById('stScanned').textContent=pairs.length;document.getElementById('scanTime').textContent='LAST: '+new Date().toLocaleTimeString('en-GB');document.getElementById('stHeat').textContent=newSignals.filter(s=>(s.heat||0)>=4).length;document.getElementById('stMTF').textContent=newSignals.filter(s=>s.mtfCount>=2).length;
   if(brandNew.length>0)playAlertSound();updateTabBadge(newSignals.length);
   pickBestSetups(allSignals);
-  updateBTCCorrelations(); // update corr cache from freshly scanned candles
-  render(); // render table immediately — badges will populate as OI/funding loads
-  // Fetch OI + funding for top signal coins (async, badges update when ready)
-  const topSyms=[...new Set(allSignals.slice(0,60).map(s=>s.symbol))];
-  fetchOIAndFunding(topSyms).then(()=>render()); // re-render with OI/funding badges
+  updateBTCCorrelations();
+  render(); // render immediately — OI/funding badges appear when background fetch completes
+  // Fire OI+funding fetch completely in background — never await, never block
+  const topSyms=[...new Set(allSignals.slice(0,20).map(s=>s.symbol))];
+  setTimeout(()=>fetchOIAndFunding(topSyms),2000); // 2s delay — scan UI is already shown
   setTimeout(()=>{
     renderBacktest();renderCorrTable();
     updateMarketConditionBar();
@@ -3173,21 +3173,29 @@ function togSessionGate(){
 // ── MARKET CONDITION BAR ──────────────────────────────────────────
 let btcCandles1H=[], btcCandles4H=[];
 
+let mktBarLastFetch=0;
 async function updateMarketConditionBar(){
-  try{
-    // Fetch BTC 1H and 4H candles for trend
-    const [r1h,r4h]=await Promise.all([
-      fetch(`${BINANCE}/api/v3/klines?symbol=BTCUSDT&interval=1h&limit=30`),
-      fetch(`${BINANCE}/api/v3/klines?symbol=BTCUSDT&interval=4h&limit=30`)
-    ]);
-    const raw1h=await r1h.json(), raw4h=await r4h.json();
-    if(Array.isArray(raw1h)&&raw1h.length){
-      btcCandles1H=raw1h.map(k=>({time:parseInt(k[0]),open:parseFloat(k[1]),high:parseFloat(k[2]),low:parseFloat(k[3]),close:parseFloat(k[4]),volume:parseFloat(k[5]),typical:(parseFloat(k[2])+parseFloat(k[3])+parseFloat(k[4]))/3}));
-    }
-    if(Array.isArray(raw4h)&&raw4h.length){
-      btcCandles4H=raw4h.map(k=>({time:parseInt(k[0]),open:parseFloat(k[1]),high:parseFloat(k[2]),low:parseFloat(k[3]),close:parseFloat(k[4]),volume:parseFloat(k[5]),typical:(parseFloat(k[2])+parseFloat(k[3])+parseFloat(k[4]))/3}));
-    }
-  }catch(e){}
+  const now=Date.now();
+  // Use already-scanned BTC candles from cache first — zero extra requests
+  if(candleCache['BTCUSDT-1h']&&candleCache['BTCUSDT-1h'].length>5){
+    btcCandles1H=candleCache['BTCUSDT-1h'];
+  }
+  if(candleCache['BTCUSDT-4h']&&candleCache['BTCUSDT-4h'].length>5){
+    btcCandles4H=candleCache['BTCUSDT-4h'];
+  }
+  // Only fetch fresh BTC candles if not in cache and 5min elapsed
+  if((!btcCandles1H||!btcCandles1H.length)&&now-mktBarLastFetch>5*60*1000){
+    try{
+      const [r1h,r4h]=await Promise.all([
+        fetch(`${BINANCE}/api/v3/klines?symbol=BTCUSDT&interval=1h&limit=30`),
+        fetch(`${BINANCE}/api/v3/klines?symbol=BTCUSDT&interval=4h&limit=30`)
+      ]);
+      const raw1h=await r1h.json(), raw4h=await r4h.json();
+      if(Array.isArray(raw1h)&&raw1h.length) btcCandles1H=raw1h.map(k=>({time:parseInt(k[0]),open:parseFloat(k[1]),high:parseFloat(k[2]),low:parseFloat(k[3]),close:parseFloat(k[4]),volume:parseFloat(k[5]),typical:(parseFloat(k[2])+parseFloat(k[3])+parseFloat(k[4]))/3}));
+      if(Array.isArray(raw4h)&&raw4h.length) btcCandles4H=raw4h.map(k=>({time:parseInt(k[0]),open:parseFloat(k[1]),high:parseFloat(k[2]),low:parseFloat(k[3]),close:parseFloat(k[4]),volume:parseFloat(k[5]),typical:(parseFloat(k[2])+parseFloat(k[3])+parseFloat(k[4]))/3}));
+      mktBarLastFetch=now;
+    }catch(e){}
+  }
   renderMarketConditionBar();
 }
 
@@ -3341,12 +3349,10 @@ const fundCache={};  // sym → {rate, ts}
 const FAPI='https://fapi.binance.com';
 
 async function fetchOIAndFunding(symbols){
-  // Batch fetch: OI history for each symbol (5m intervals, last 2 = change %)
-  // Funding rate: single endpoint returns all symbols at once
+  // BACKGROUND ONLY — never called from scan critical path
+  // Funding: one request gets ALL symbols at once (fast)
   try{
-    const [fundRes]=await Promise.all([
-      fetch(`${FAPI}/fapi/v1/premiumIndex`)
-    ]);
+    const fundRes=await fetch(`${FAPI}/fapi/v1/premiumIndex`);
     const fundData=await fundRes.json();
     if(Array.isArray(fundData)){
       fundData.forEach(d=>{
@@ -3356,24 +3362,23 @@ async function fetchOIAndFunding(symbols){
       });
     }
   }catch(e){}
-  // OI: fetch per symbol in small batches (no bulk endpoint)
-  const toBatch=symbols.slice(0,50); // top 50 signal coins only
-  for(let i=0;i<toBatch.length;i+=10){
-    const batch=toBatch.slice(i,i+10);
-    await Promise.allSettled(batch.map(async sym=>{
-      try{
-        const res=await fetch(`${FAPI}/futures/data/openInterestHist?symbol=${sym}&period=5m&limit=3`);
-        const data=await res.json();
-        if(Array.isArray(data)&&data.length>=2){
-          const latest=parseFloat(data[data.length-1].sumOpenInterest);
-          const prev=parseFloat(data[0].sumOpenInterest);
-          const chgPct=prev>0?((latest-prev)/prev*100):0;
-          oiCache[sym]={oiChg:chgPct.toFixed(2),oiDir:chgPct>0.5?'UP':chgPct<-0.5?'DOWN':'FLAT',ts:Date.now()};
-        }
-      }catch(e){}
-    }));
-    await new Promise(r=>setTimeout(r,100));
+  // OI: only top 20 coins, one at a time, long pauses — pure background
+  const toBatch=symbols.slice(0,20);
+  for(const sym of toBatch){
+    try{
+      const res=await fetch(`${FAPI}/futures/data/openInterestHist?symbol=${sym}&period=5m&limit=3`);
+      const data=await res.json();
+      if(Array.isArray(data)&&data.length>=2){
+        const latest=parseFloat(data[data.length-1].sumOpenInterest);
+        const prev=parseFloat(data[0].sumOpenInterest);
+        const chgPct=prev>0?((latest-prev)/prev*100):0;
+        oiCache[sym]={oiChg:parseFloat(chgPct.toFixed(2)),oiDir:chgPct>0.5?'UP':chgPct<-0.5?'DOWN':'FLAT',ts:Date.now()};
+      }
+    }catch(e){}
+    await new Promise(r=>setTimeout(r,300)); // 300ms between each — stays in background
   }
+  // Silently update badges after all data is in
+  render();
 }
 
 function getOIBadge(sym){
@@ -3556,6 +3561,11 @@ window.addEventListener('DOMContentLoaded',()=>{
   updateMarketConditionBar();setInterval(updateMarketConditionBar,5*60*1000);
   setTimeout(wrCheckOutcomes,5000);
   setTimeout(fetchBTCDHistory,3000);
+  // Background OI+funding refresh every 5 minutes — never blocks anything
+  setInterval(()=>{
+    const syms=Object.keys(fundCache).length?Object.keys(fundCache).slice(0,20):DEFAULT_PAIRS.slice(0,20);
+    fetchOIAndFunding(syms);
+  },5*60*1000);
   if(Notification.permission==='default')Notification.requestPermission();
 });
 window.addEventListener('keydown',e=>{if(e.key==='Escape'){closeModal();closeAlertModal();}});
