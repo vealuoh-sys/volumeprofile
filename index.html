@@ -223,6 +223,10 @@ header{display:flex;align-items:center;justify-content:space-between;padding:16p
 .badge.EARLY_BEAR{background:rgba(255,94,58,.1);color:#FF7040;border:1px dashed rgba(255,94,58,.6);}
 .badge.SQUEEZE_BULL{background:rgba(0,229,255,.15);color:#00E5FF;border:2px solid rgba(0,229,255,.6);font-weight:900;animation:pulse 2s infinite;}
 .badge.SQUEEZE_BEAR{background:rgba(255,94,58,.15);color:#FF5E3A;border:2px solid rgba(255,94,58,.6);font-weight:900;animation:pulse 2s infinite;}
+.badge.COMPRESSION_SQUEEZE{background:rgba(180,100,255,.18);color:#C97FFF;border:2px solid rgba(180,100,255,.7);font-weight:900;animation:pulse 1.4s infinite;}
+.badge.VWAP_RECLAIM{background:rgba(0,191,255,.15);color:#00BFFF;border:2px solid rgba(0,191,255,.6);font-weight:900;animation:pulse 2s infinite;}
+.badge.SPOT_ORGANIC{background:rgba(0,255,120,.15);color:#00FF78;border:2px solid rgba(0,255,120,.65);font-weight:900;animation:pulse 2s infinite;}
+.badge.MTF_RSI_STAIRCASE{background:rgba(255,215,0,.15);color:#FFD700;border:2px solid rgba(255,215,0,.65);font-weight:900;animation:pulse 1.8s infinite;}
 .badge.NEW-TAG{background:rgba(0,255,178,.15);color:var(--acc);border:1px solid var(--acc);font-size:.44rem;padding:1px 4px;}
 .badge.MTF-TAG{background:rgba(124,77,255,.15);color:#BF5FFF;border:1px solid rgba(124,77,255,.4);font-size:.44rem;padding:1px 4px;}
 @keyframes pulse{0%{opacity:1}50%{opacity:.5}100%{opacity:1}}
@@ -801,6 +805,10 @@ footer{margin-top:18px;padding-top:10px;border-top:1px solid var(--border);displ
         <option value="EARLY_BULL">EARLY BULL</option>
         <option value="BULL_CONFIRM">BULL CONFIRM</option>
         <option value="SQUEEZE_BULL">SQUEEZE</option>
+        <option value="COMPRESSION_SQUEEZE">🌀 COILED SPRING</option>
+        <option value="VWAP_RECLAIM">🏛 VWAP RECLAIM</option>
+        <option value="SPOT_ORGANIC">🟢 SPOT PUMP</option>
+        <option value="MTF_RSI_STAIRCASE">🪜 MTF STAIRCASE</option>
       </select>
     </div>
     <div class="alert-row"><span style="min-width:46px">TF</span>
@@ -888,7 +896,11 @@ const LABEL_MAP={
   POC_DIV:'◆ POC+DIV',POC_SPIKE:'◆ POC+SPIKE',WARNING:'⚠ VAH FAKEOUT',
   EARLY_BULL:'⚡ EARLY BULL',BULL_CONFIRM:'✔ BULL CONFIRM',EARLY_BEAR:'⚠ EARLY BEAR',
   MEGA_SPIKE:'🔥 MEGA SPIKE',
-  SQUEEZE_BULL:'◎ SQUEEZE↑',SQUEEZE_BEAR:'◎ SQUEEZE↓'
+  SQUEEZE_BULL:'◎ SQUEEZE↑',SQUEEZE_BEAR:'◎ SQUEEZE↓',
+  COMPRESSION_SQUEEZE:'🌀 COILED SPRING',
+  VWAP_RECLAIM:'🏛 VWAP RECLAIM',
+  SPOT_ORGANIC:'🟢 SPOT PUMP',
+  MTF_RSI_STAIRCASE:'🪜 MTF STAIRCASE'
 };
 
 // ── SECTOR MAP ────────────────────────────────────────────────────
@@ -946,7 +958,7 @@ function getSector(sym){return SECTOR_MAP[sym]||'OTHER';}
 
 // Active sector filter (null = show all)
 let activeSector=null;
-function baseType(t){return t.startsWith('VAH')?'VAH':t.startsWith('VAL')?'VAL':t.startsWith('POC')?'POC':t.startsWith('EARLY_BULL')||t.startsWith('BULL_CONFIRM')?'EMA_BULL':t.startsWith('EARLY_BEAR')?'EMA_BEAR':t;}
+function baseType(t){return t.startsWith('VAH')?'VAH':t.startsWith('VAL')?'VAL':t.startsWith('POC')?'POC':t.startsWith('EARLY_BULL')||t.startsWith('BULL_CONFIRM')?'EMA_BULL':t.startsWith('EARLY_BEAR')?'EMA_BEAR':t==='COMPRESSION_SQUEEZE'?'COMPRESSION_SQUEEZE':t==='VWAP_RECLAIM'?'VWAP_RECLAIM':t==='SPOT_ORGANIC'?'SPOT_ORGANIC':t==='MTF_RSI_STAIRCASE'?'MTF_RSI_STAIRCASE':t;}
 function sigKey(s){return`${s.symbol}-${s.type}-${s.tf}`;}
 function fp(p){if(!p&&p!==0)return'—';if(p>=10000)return p.toLocaleString('en',{maximumFractionDigits:1});if(p>=1)return p.toFixed(4);return p.toFixed(6);}
 function scanPairs(){return activeGroup?coinGroups.find(g=>g.name===activeGroup)?.coins||DEFAULT_PAIRS:DEFAULT_PAIRS;}
@@ -1406,6 +1418,34 @@ function getUpgradeBadges(s){
   try{badges.push(getPhantomWallBadge(s.symbol));}catch(e){}
   try{badges.push(getLiqFuelCellBadge(s));}catch(e){}
   try{badges.push(getTapeSweepBadge(s));}catch(e){}
+  // ── Pump Engine meta-badges ──
+  try{
+    if(s.type==='COMPRESSION_SQUEEZE'||s._nr7Pending){
+      const ratio=s.nr7CompressionRatio;
+      const tightness=ratio<0.3?'EXTREME':ratio<0.45?'TIGHT':'COILED';
+      const col=ratio<0.3?'#FF00FF':ratio<0.45?'#C97FFF':'#BF9FFF';
+      badges.push(`<span style="font-size:.42rem;padding:1px 4px;color:${col};border:1px solid ${col}55;background:${col}11" title="NR7 compression ratio vs 20-bar ATR">🌀 NR7 ${tightness} (${(ratio*100).toFixed(0)}%)</span>`);
+      if(s.squeezeFired)badges.push(`<span style="font-size:.42rem;padding:1px 4px;color:#FF00FF;border:1px solid rgba(255,0,255,.6);background:rgba(255,0,255,.12);font-weight:900;animation:pulse 1s infinite">⚡ VOL SPIKE FIRED</span>`);
+    }
+  }catch(e){}
+  try{
+    if(s.type==='VWAP_RECLAIM'&&s.vwapData){
+      const{vwap,volumeRatio,strengthBonus}=s.vwapData;
+      badges.push(`<span style="font-size:.42rem;padding:1px 4px;color:#00BFFF;border:1px solid rgba(0,191,255,.4);background:rgba(0,191,255,.08)" title="Institutional VWAP reclaim — volume ${volumeRatio?volumeRatio.toFixed(1):'-'}× avg">🏛 VWAP $${fp(vwap)} · ${volumeRatio?(volumeRatio.toFixed(1)+'× VOL'):''}</span>`);
+    }
+  }catch(e){}
+  try{
+    if(s.type==='SPOT_ORGANIC'&&s.spotAccel!=null){
+      const col=s.spotAccel>400?'#00FF78':s.spotAccel>200?'#00E5B0':'#00BFFF';
+      badges.push(`<span style="font-size:.42rem;padding:1px 4px;color:${col};border:1px solid ${col}55;background:${col}11" title="Spot volume acceleration vs 2h baseline">🟢 SPOT +${s.spotAccel.toFixed(0)}% · FUTURES FLAT</span>`);
+    }
+  }catch(e){}
+  try{
+    if(s.type==='MTF_RSI_STAIRCASE'&&s.mtfRSI){
+      const r=s.mtfRSI;
+      badges.push(`<span style="font-size:.42rem;padding:1px 4px;color:#FFD700;border:1px solid rgba(255,215,0,.4);background:rgba(255,215,0,.08)" title="RSI cascade across 4 timeframes">🪜 5m:${r.rsi5m.toFixed(0)} 15m:${r.rsi15m.toFixed(0)} 1h:${r.rsi1h.toFixed(0)} 4h:${r.rsi4h.toFixed(0)}</span>`);
+    }
+  }catch(e){}
   return badges.filter(Boolean).join('');
 }
 
@@ -2776,6 +2816,199 @@ function hasHigherLowBefore(candles, curr){
   return candles[curr-1].low>candles[curr-2].low;
 }
 
+// ══════════════════════════════════════════════════════════════════
+// PUMP-CATCHING ENGINE #1: NR7 Volatility Compression (Coiled Spring)
+// Flags the narrowest-range candle in the last 7 — market is coiling.
+// ══════════════════════════════════════════════════════════════════
+function detectNR7Compression(candles){
+  const n=candles.length;
+  if(n<10)return null;
+  // Use confirmed closed candles (skip last live candle)
+  const window=candles.slice(-8,-1); // 7 confirmed candles
+  if(window.length<7)return null;
+  const ranges=window.map(c=>c.high-c.low);
+  const lastRange=ranges[ranges.length-1];
+  const minRange=Math.min(...ranges);
+  if(lastRange!==minRange)return null; // must be the narrowest
+  // Compute how compressed relative to 20-candle ATR baseline
+  const baseline=candles.slice(-22,-2);
+  const avgRange=baseline.reduce((a,c)=>a+(c.high-c.low),0)/baseline.length;
+  const compressionRatio=lastRange/avgRange; // <0.5 = very tight
+  return{type:'NR7',compressionRatio,isExtreme:compressionRatio<0.4};
+}
+
+// ══════════════════════════════════════════════════════════════════
+// PUMP-CATCHING ENGINE #2: Session VWAP Reclaim
+// Price drops to -2σ VWAP band then snaps back above VWAP on high vol.
+// ══════════════════════════════════════════════════════════════════
+function calcSessionVWAP(candles){
+  // Use last 24 candles as session window (flexible for any TF)
+  const sessionLen=Math.min(24,candles.length-1);
+  const sess=candles.slice(-sessionLen-1,-1); // confirmed candles
+  let cumVolPrice=0,cumVol=0;
+  sess.forEach(c=>{cumVolPrice+=c.typical*c.volume;cumVol+=c.volume;});
+  if(!cumVol)return null;
+  const vwap=cumVolPrice/cumVol;
+  // VWAP standard deviation bands
+  const variance=sess.reduce((a,c)=>a+c.volume*Math.pow(c.typical-vwap,2),0)/cumVol;
+  const sd=Math.sqrt(variance);
+  return{vwap,sdUpper2:vwap+2*sd,sdLower2:vwap-2*sd,sd};
+}
+
+function detectVWAPReclaim(candles){
+  const n=candles.length;
+  if(n<26)return null;
+  const vwapData=calcSessionVWAP(candles);
+  if(!vwapData)return null;
+  const{vwap,sdLower2,sd}=vwapData;
+  // Look back up to 6 candles to find if price touched -2σ band
+  const lookback=candles.slice(-8,-1);
+  let touchedLower=false;
+  for(const c of lookback){
+    if(c.low<=sdLower2)touchedLower=true;
+  }
+  if(!touchedLower)return null;
+  // Current (most recent confirmed) candle must close ABOVE vwap
+  const cur=candles[n-2];
+  if(cur.close<=vwap)return null;
+  // Volume confirmation: current candle volume > 1.5× recent average
+  const recentVols=candles.slice(-12,-2).map(c=>c.volume);
+  const avgVol=recentVols.reduce((a,b)=>a+b,0)/recentVols.length;
+  if(cur.volume<avgVol*1.5)return null;
+  const strengthBonus=Math.min(20,Math.round(((cur.close-vwap)/sd)*8));
+  return{type:'VWAP_RECLAIM',vwap,sdLower2,strengthBonus,volumeRatio:cur.volume/avgVol};
+}
+
+// ══════════════════════════════════════════════════════════════════
+// PUMP-CATCHING ENGINE #3: Spot vs Futures Volume Divergence
+// Fetches spot 1h klines and compares volume acceleration to futures.
+// Cache keyed by symbol to avoid re-fetch on same scan.
+// ══════════════════════════════════════════════════════════════════
+const spotVolCache={};
+async function fetchSpotVolAcceleration(sym){
+  const now=Date.now();
+  if(spotVolCache[sym]&&(now-spotVolCache[sym].ts)<3*60*1000)return spotVolCache[sym].val;
+  try{
+    const res=await fetch(`${BINANCE}/api/v3/klines?symbol=${sym}&interval=1h&limit=6`);
+    if(!res.ok)return null;
+    const raw=await res.json();
+    if(!Array.isArray(raw)||raw.length<4)return null;
+    const vols=raw.slice(-4).map(k=>parseFloat(k[5]));
+    const recent=(vols[2]+vols[3])/2;
+    const baseline=(vols[0]+vols[1])/2;
+    const accel=baseline>0?(recent-baseline)/baseline*100:0;
+    spotVolCache[sym]={val:accel,ts:now};
+    return accel;
+  }catch(e){return null;}
+}
+
+// Called per-coin during processCoin — results stored in signal
+async function detectSpotFuturesDivergence(sym,futuresVolRatio){
+  const spotAccel=await fetchSpotVolAcceleration(sym);
+  if(spotAccel===null||spotAccel===undefined)return null;
+  // Spot vol up >200% while futures flat (<50% acceleration)
+  if(spotAccel<200)return null;
+  // futuresVolRatio: ratio of recent futures vol to baseline (already computed from OI data or estimated)
+  // If not available, we use a conservative threshold
+  const futuresFlat=futuresVolRatio===null||futuresVolRatio<50;
+  if(!futuresFlat)return null;
+  return{type:'SPOT_ORGANIC',spotAccel,futuresVolRatio,isOrganic:true};
+}
+
+// ══════════════════════════════════════════════════════════════════
+// PUMP-CATCHING ENGINE #4: MTF RSI Momentum Staircase
+// 5m RSI > 60, 15m RSI > 60, 1h RSI > 60, 4h RSI trending up < 70
+// ══════════════════════════════════════════════════════════════════
+const mtfRSICache={};
+async function fetchRSIForTF(sym,tf){
+  const key=sym+'-'+tf;
+  const now=Date.now();
+  if(mtfRSICache[key]&&(now-mtfRSICache[key].ts)<2*60*1000)return mtfRSICache[key].val;
+  try{
+    const limit=tf==='5m'?50:tf==='15m'?50:25;
+    const res=await fetch(`${BINANCE}/api/v3/klines?symbol=${sym}&interval=${tf}&limit=${limit}`);
+    if(!res.ok)return null;
+    const raw=await res.json();
+    if(!Array.isArray(raw)||raw.length<20)return null;
+    const candles=raw.map(k=>({close:parseFloat(k[4])}));
+    const rsi=calcRSI(candles);
+    const lastRSI=rsi[rsi.length-2]; // confirmed candle
+    // For 4h we also need prev to check trend
+    const prevRSI=rsi[rsi.length-3];
+    mtfRSICache[key]={val:{current:lastRSI,prev:prevRSI},ts:now};
+    return{current:lastRSI,prev:prevRSI};
+  }catch(e){return null;}
+}
+
+async function detectMTFRSIStaircase(sym){
+  const [rsi5m,rsi15m,rsi1h,rsi4h]=await Promise.all([
+    fetchRSIForTF(sym,'5m'),
+    fetchRSIForTF(sym,'15m'),
+    fetchRSIForTF(sym,'1h'),
+    fetchRSIForTF(sym,'4h')
+  ]);
+  if(!rsi5m||!rsi15m||!rsi1h||!rsi4h)return null;
+  // All short TFs above 60, 4h trending up but not overbought
+  const aligned5m=rsi5m.current>60;
+  const aligned15m=rsi15m.current>60;
+  const aligned1h=rsi1h.current>60;
+  const trend4h=rsi4h.current>rsi4h.prev&&rsi4h.current<70;
+  if(!aligned5m||!aligned15m||!aligned1h||!trend4h)return null;
+  const avgRSI=(rsi5m.current+rsi15m.current+rsi1h.current)/3;
+  const momentum=Math.round(avgRSI); // 60-100 range
+  return{type:'MTF_RSI_STAIRCASE',rsi5m:rsi5m.current,rsi15m:rsi15m.current,rsi1h:rsi1h.current,rsi4h:rsi4h.current,momentum,stairsLocked:true};
+}
+
+// ── 1-Minute WebSocket Volume Spike Monitor (for NR7 Squeeze Breakout) ──
+// Tracks real-time 1m volumes for coins flagged as NR7.
+// When vol spike > 3× rolling avg → upgrades signal to COMPRESSION_SQUEEZE.
+const nr7WatchList=new Map(); // sym → {avgVol, rollingVols, flagged}
+let wsNR7=null,wsNR7Timer=null;
+
+function startNR7VolumeWatch(symbols){
+  if(wsNR7){try{wsNR7.close();}catch(e){}}
+  clearTimeout(wsNR7Timer);
+  if(!symbols||!symbols.length)return;
+  const streams=symbols.slice(0,30).map(s=>s.toLowerCase()+'@kline_1m').join('/');
+  try{
+    wsNR7=new WebSocket(`${WS_BASE}${streams}`);
+    wsNR7.onmessage=(evt)=>{
+      try{
+        const msg=JSON.parse(evt.data);
+        const d=msg.data||msg;
+        if(!d||!d.k)return;
+        const k=d.k;
+        const sym=k.s;
+        const vol=parseFloat(k.v);
+        const isClosed=k.x;
+        if(!nr7WatchList.has(sym))return;
+        const entry=nr7WatchList.get(sym);
+        // Update rolling average on closed candles
+        if(isClosed){
+          entry.rollingVols.push(vol);
+          if(entry.rollingVols.length>20)entry.rollingVols.shift();
+          entry.avgVol=entry.rollingVols.reduce((a,b)=>a+b,0)/entry.rollingVols.length;
+        }
+        // Live spike check — vol > 3× avg even on forming candle
+        if(!entry.flagged&&entry.avgVol>0&&vol>entry.avgVol*3){
+          entry.flagged=true;
+          // Find and upgrade NR7 signals to COMPRESSION_SQUEEZE
+          allSignals=allSignals.map(s=>{
+            if(s.symbol===sym&&s._nr7Pending){
+              return{...s,type:'COMPRESSION_SQUEEZE',_nr7Pending:false,squeezeFired:true};
+            }
+            return s;
+          });
+          showToast(`🌀 SQUEEZE BREAKOUT: ${sym.replace('USDT','')} — 1m vol spike ${Math.round(vol/entry.avgVol)}×!`,'var(--acc)');
+          render();
+        }
+      }catch(e){}
+    };
+    wsNR7.onerror=()=>{};
+    wsNR7.onclose=()=>{wsNR7Timer=setTimeout(()=>startNR7VolumeWatch([...nr7WatchList.keys()]),15000);};
+  }catch(e){}
+}
+
 function detectSignals(symbol,candles,tf,chg,ts){
   const vp=calcVP(candles.slice(0,-1));if(!vp)return[];
   const rsiArr=calcRSI(candles),div=checkDiv(candles,rsiArr);
@@ -2983,6 +3216,54 @@ function detectSignals(symbol,candles,tf,chg,ts){
       entryZone:calcEntryZone(cur.close,vp,'VAH',atrVal),
       counterTrend:false,ts:ts||Date.now()});
   }
+  // ── PUMP ENGINE #1: NR7 Volatility Compression ──
+  // Only run on 1h TF (enough candle history, not too noisy)
+  if(tf==='1h'&&!isDuplicateSignal(symbol,'COMPRESSION_SQUEEZE',tf)){
+    const nr7=detectNR7Compression(candles);
+    if(nr7){
+      const conf=calcConfluence(candles,vp,rsiArr,div,trend,volTier,ms,session,liqSweep,sr,obs,pattern,stopHunt,adx,mtfZones);
+      const heat=calcHeat(conf.total,volTier,div,ms,liqSweep,pattern,stopHunt,adx);
+      let str=55+(nr7.isExtreme?15:0);
+      if(volTier==='SPIKE'||volTier==='MEGA_SPIKE')str+=15;
+      if(trend==='UP')str+=10;
+      if(adx>25)str+=8;
+      str=Math.min(99,Math.max(25,str));
+      // Register in NR7 watchlist so WebSocket can upgrade to COMPRESSION_SQUEEZE on vol spike
+      if(!nr7WatchList.has(symbol)){
+        const recentVols=candles.slice(-22,-2).map(c=>c.volume);
+        nr7WatchList.set(symbol,{avgVol:recentVols.reduce((a,b)=>a+b,0)/recentVols.length,rollingVols:[...recentVols],flagged:false});
+      }
+      sigs.push({symbol,price:cur.close,vp,tf,type:'COMPRESSION_SQUEEZE',trend,volTier,volRatio,
+        htfTrend,chg,strength:str,confluence:conf.total,confluenceFactors:conf.factors,
+        heat:Math.max(2,heat),ms,msLabel,freshness:'HOT',session:session.session,
+        liqSweep,sr,obs,fvgs,volDelta,pattern:pattern?pattern.pattern:null,stopHunt,adx,mtfZones,
+        atr:atrVal,squeeze:squeeze||null,_nr7Pending:true,nr7CompressionRatio:nr7.compressionRatio,
+        entryZone:calcEntryZone(cur.close,vp,'VAL',atrVal),ts:ts||Date.now()});
+    }
+  }
+
+  // ── PUMP ENGINE #2: Session VWAP Reclaim ──
+  if(!isDuplicateSignal(symbol,'VWAP_RECLAIM',tf)){
+    const vwapReclaim=detectVWAPReclaim(candles);
+    if(vwapReclaim){
+      const conf=calcConfluence(candles,vp,rsiArr,div,trend,volTier,ms,session,liqSweep,sr,obs,pattern,stopHunt,adx,mtfZones);
+      const heat=calcHeat(conf.total,volTier,div,ms,liqSweep,pattern,stopHunt,adx);
+      let str=62+(vwapReclaim.strengthBonus||0);
+      if(volTier==='SPIKE'||volTier==='MEGA_SPIKE')str+=12;
+      if(div==='BULLISH')str+=10;
+      if(['BOS','HH','HL'].includes(ms))str+=8;
+      if(adx>25)str+=8;
+      if(trend==='DOWN')str-=15;
+      str=Math.min(99,Math.max(30,str));
+      sigs.push({symbol,price:cur.close,vp,tf,type:'VWAP_RECLAIM',trend,volTier,volRatio,
+        htfTrend,chg,strength:str,confluence:conf.total,confluenceFactors:conf.factors,
+        heat:Math.max(3,heat),ms,msLabel,freshness:'HOT',session:session.session,
+        liqSweep,sr,obs,fvgs,volDelta,pattern:pattern?pattern.pattern:null,stopHunt,adx,mtfZones,
+        atr:atrVal,squeeze:squeeze||null,vwapData:vwapReclaim,
+        entryZone:calcEntryZone(cur.close,vp,'VAL',atrVal),ts:ts||Date.now()});
+    }
+  }
+
   return sigs;
 }
 
@@ -3037,6 +3318,66 @@ async function triggerAndPoll(){
     const chg=chgCache[sym]||0;
     const now=Date.now(); // per-coin timestamp so age is accurate
     if(c1h){candleCache[sym+'-1h']=c1h;try{results.push(...detectSignals(sym,c1h,'1h',chg,now));}catch(e){}}
+
+    // ── PUMP ENGINE #3: Spot vs Futures Divergence (async, 1h TF) ──
+    try{
+      if(c1h&&!isDuplicateSignal(sym,'SPOT_ORGANIC','1h')){
+        // Estimate futures vol acceleration from OI change cache or skip if no data
+        const oiEntry=typeof oiCache!=='undefined'?oiCache[sym]:null;
+        const futuresAccel=oiEntry?oiEntry.oiChg:null; // rough proxy
+        const spotDiv=await detectSpotFuturesDivergence(sym,futuresAccel);
+        if(spotDiv){
+          const vp=calcVP(c1h.slice(0,-1));
+          const rsiArr=calcRSI(c1h);
+          const trendObj=detectTrend(c1h);
+          const{trend,ema5,ema12,ema53}=trendObj;
+          const{volTier,volRatio}=classifyVol(c1h);
+          const{ms,label:msLabel}=detectMarketStructure(c1h);
+          const session=getCurrentSession();
+          const atrVal=calcATR(c1h);
+          const cur=c1h[c1h.length-2];
+          let str=70+Math.min(20,Math.round(spotDiv.spotAccel/20));
+          if(trend==='UP')str+=10;
+          str=Math.min(99,Math.max(40,str));
+          if(vp){results.push({symbol:sym,price:cur.close,vp,tf:'1h',type:'SPOT_ORGANIC',trend,volTier,volRatio,
+            htfTrend:'NEUTRAL',chg,strength:str,confluence:70,confluenceFactors:['SPOT_ACCEL','VOL_DIVERGE'],
+            heat:4,ms,msLabel,freshness:'HOT',session:session.session,
+            liqSweep:null,sr:[],obs:[],fvgs:[],volDelta:{buyPct:65,label:'BULL DELTA'},
+            pattern:null,stopHunt:null,adx:0,mtfZones:[],atr:atrVal,squeeze:null,
+            spotAccel:spotDiv.spotAccel,
+            entryZone:calcEntryZone(cur.close,vp,'VAL',atrVal),ts:now});}
+        }
+      }
+    }catch(e){}
+
+    // ── PUMP ENGINE #4: MTF RSI Staircase (async, uses 5m/15m/1h/4h RSI) ──
+    try{
+      if(!isDuplicateSignal(sym,'MTF_RSI_STAIRCASE','1h')){
+        const mtfRSI=await detectMTFRSIStaircase(sym);
+        if(mtfRSI){
+          const vp=c1h?calcVP(c1h.slice(0,-1)):null;
+          const atrVal=c1h?calcATR(c1h):0;
+          const cur=c1h?c1h[c1h.length-2]:null;
+          const{volTier,volRatio}=c1h?classifyVol(c1h):{volTier:'NORMAL',volRatio:1};
+          const trendObj=c1h?detectTrend(c1h):{trend:'UP',ema5:0,ema12:0,ema53:0};
+          const{trend,ema5,ema12,ema53}=trendObj;
+          const{ms,label:msLabel}=c1h?detectMarketStructure(c1h):{ms:'HH',label:'HH'};
+          const session=getCurrentSession();
+          if(vp&&cur){
+            let str=65+Math.min(20,Math.round((mtfRSI.momentum-60)/2));
+            if(volTier==='SPIKE'||volTier==='MEGA_SPIKE')str+=10;
+            str=Math.min(99,Math.max(40,str));
+            results.push({symbol:sym,price:cur.close,vp,tf:'1h',type:'MTF_RSI_STAIRCASE',trend,volTier,volRatio,
+              htfTrend:'UP',chg,strength:str,confluence:72,confluenceFactors:['RSI_5M','RSI_15M','RSI_1H','RSI_4H_TREND'],
+              heat:4,ms,msLabel,freshness:'HOT',session:session.session,
+              liqSweep:null,sr:[],obs:[],fvgs:[],volDelta:{buyPct:60,label:'BULL DELTA'},
+              pattern:null,stopHunt:null,adx:0,mtfZones:[],atr:atrVal,squeeze:null,
+              mtfRSI,
+              entryZone:calcEntryZone(cur.close,vp,'VAL',atrVal),ts:now});
+          }
+        }
+      }
+    }catch(e){}
     if(c4h){candleCache[sym+'-4h']=c4h;try{results.push(...detectSignals(sym,c4h,'4h',chg,now));}catch(e){}}
     if(c1d){candleCache[sym+'-1d']=c1d;try{results.push(...detectSignals(sym,c1d,'1d',chg,now));}catch(e){}}
     return results;
@@ -3085,6 +3426,11 @@ async function triggerAndPoll(){
     updateTabBadge(newSignals.length);
     pickBestSetups(allSignals);
     detectSectorRotation(allSignals);
+    // ── Start NR7 1m WebSocket for coiled spring breakout detection ──
+    try{
+      const nr7Coins=allSignals.filter(s=>s._nr7Pending).map(s=>s.symbol);
+      if(nr7Coins.length>0)startNR7VolumeWatch(nr7Coins);
+    }catch(e){}
     try{detectSectorExpansion(allSignals);}catch(e){}
     updateBTCCorrelations();
     render();
@@ -3124,6 +3470,7 @@ function render(){
   const query=(document.getElementById('coinSearch').value||'').toUpperCase().trim();
   let filtered=allSignals.filter(s=>{const bt=baseType(s.type);if(!activeTFs.has(s.tf))return false;if(s.type==='WARNING')return showWarnings;
     if(s.type==='EARLY_BULL'||s.type==='BULL_CONFIRM')return true; // always show bull EMA signals
+    if(s.type==='COMPRESSION_SQUEEZE'||s.type==='VWAP_RECLAIM'||s.type==='SPOT_ORGANIC'||s.type==='MTF_RSI_STAIRCASE')return true; // always show pump engines
     if(s.type==='EARLY_BEAR')return showEarlyBear; // hidden by default
     if(!activeSigs.has(bt))return false;if(s.strength<minStrength)return false;if(query&&!s.symbol.includes(query))return false;if(mtfOnly&&(s.mtfCount||0)<2)return false;
     // Sector filter
