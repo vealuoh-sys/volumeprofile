@@ -871,7 +871,13 @@ const DEFAULT_PAIRS=[
   'HIGHUSDT','CVXUSDT','PYRUSDT','STPTUSDT','NKNUSDT','CTSIUSDT','VOXELUSDT','SYSUSDT','RADUSDT','KDAUSDT',
   'FLMUSDT','REEFUSDT','CELOUSDT','TRUUSDT','LOOMUSDT','WANUSDT','KAVAUSDT','CLVUSDT','IDEXUSDT','BURGERUSDT',
   'ALPINEUSDT','MASKUSDT','OMUSDT','MYROUSDT','AUCTIONUSDT','PEOPLEUSDT','DENTUSDT','PERPUSDT','MEMEUSDT','SATSUSDT',
-  'ACAUSDT','XVGUSDT','ACHUSDT','BNTUSDT','DUSKUSDT','FORTHUSDT','GTCUSDT','KEYUSDT','LUNCUSDT','PONDUSDT'
+  'ACAUSDT','XVGUSDT','ACHUSDT','BNTUSDT','DUSKUSDT','FORTHUSDT','GTCUSDT','KEYUSDT','LUNCUSDT','PONDUSDT',
+  // ── Low-cap expansion ──
+  'ASTRUSDT','COMBOUSDT','PROMUSDT','QKCUSDT','VITEUSDT','OXTUSDT','SUPERUSDT','MDXUSDT','TWTUSDT','BADGERUSDT',
+  'REQUSDT','POWRUSDT','TVKUSDT','HARDUSDT','AURAUSDT','BONDUSDT','PHAUSDT','LITUSDT','PAXGUSDT','MLNUSDT',
+  'ERNUSDT','DIAUSDT','WINGUSDT','MBLUSDT','CLAMOUSDT','ICXUSDT','WAVESUSDT','SCUSDT','DGBUSDT','XEMUSDT',
+  'ELFUSDT','NULSUSDT','TNBUSDT','ROSEUSDT','CELRUSDT','WNXMUSDT','ALPHAOUSDT','DREPUSDT','LAZIOUSDT','PORTOUSDT',
+  'TUSDT','JUVUSDT','PSGUSDT','CITYUSDT','ATMUSDT','INTERUSDT','ARUSDT','FIDAUSDT','MBXUSDT','BICOUSDT'
 ];
 
 // STATE
@@ -2686,7 +2692,7 @@ function renderWatchlist(){const el=document.getElementById('wlChips');el.innerH
 function updateWlChip(sym,price,chg){const pe=document.getElementById('wlp-'+sym),ce=document.getElementById('wlc-'+sym);if(pe)pe.textContent='$'+fp(price);if(ce){ce.textContent=(chg>=0?'+':'')+chg.toFixed(2)+'%';ce.className='wl-chg '+(chg>=0?'up':'dn');}}
 
 // WEBSOCKET
-function startWebSocket(){if(wsConn){try{wsConn.close();}catch(e){}}clearTimeout(wsReconnectTimer);const syms=DEFAULT_PAIRS.slice(0,100);const streams=syms.map(s=>s.toLowerCase()+'@miniTicker').join('/');try{wsConn=new WebSocket(`${WS_BASE}${streams}`);wsConn.onopen=()=>setWsStatus('connected','● LIVE');wsConn.onmessage=(evt)=>{try{const d=(JSON.parse(evt.data)).data||JSON.parse(evt.data);if(d&&d.s&&d.c){const price=parseFloat(d.c),chg=parseFloat(d.P)||0;livePrices[d.s]={price,chg};updateLivePriceCell(d.s,price,chg);updateWlChip(d.s,price,chg);checkPriceAlerts();}}catch(e){};};wsConn.onerror=()=>setWsStatus('error','⚠ ERR');wsConn.onclose=()=>{setWsStatus('','WS OFF');wsReconnectTimer=setTimeout(startWebSocket,10000);};}catch(e){setWsStatus('error','⚠ FAIL');}}
+function startWebSocket(){if(wsConn){try{wsConn.close();}catch(e){}}clearTimeout(wsReconnectTimer);const syms=DEFAULT_PAIRS.slice(0,125);const streams=syms.map(s=>s.toLowerCase()+'@miniTicker').join('/');try{wsConn=new WebSocket(`${WS_BASE}${streams}`);wsConn.onopen=()=>setWsStatus('connected','● LIVE');wsConn.onmessage=(evt)=>{try{const d=(JSON.parse(evt.data)).data||JSON.parse(evt.data);if(d&&d.s&&d.c){const price=parseFloat(d.c),chg=parseFloat(d.P)||0;livePrices[d.s]={price,chg};updateLivePriceCell(d.s,price,chg);updateWlChip(d.s,price,chg);checkPriceAlerts();}}catch(e){};};wsConn.onerror=()=>setWsStatus('error','⚠ ERR');wsConn.onclose=()=>{setWsStatus('','WS OFF');wsReconnectTimer=setTimeout(startWebSocket,10000);};}catch(e){setWsStatus('error','⚠ FAIL');}}
 function setWsStatus(cls,label){const el=document.getElementById('wsStatus');el.className='ws-status'+(cls?' '+cls:'');document.getElementById('wsLabel').textContent=label;}
 function updateLivePriceCell(sym,price,chg){const row=document.querySelector(`.row[data-sym="${sym}"]`);if(!row)return;const pe=row.querySelector('.price-live'),ce=row.querySelector('.chg-live');if(pe)pe.textContent='$'+fp(price);if(ce){ce.textContent=(chg>=0?'+':'')+chg.toFixed(2)+'%';ce.className='chg chg-live '+(chg>=0?'up':'dn');}}
 
@@ -4548,15 +4554,15 @@ function addVPVRToChart(candles, tf) {
 }
 
 // ══════════════════════════════════════════════════════════════════
-//  WEBSOCKET 2 — Covers coins 101-200
-//  Binance allows 200 streams per connection. We use 2 connections.
+//  WEBSOCKET 2 — Covers coins 125-250 (low-cap expansion)
+//  Binance allows 200 streams per connection. We use 3 connections.
 // ══════════════════════════════════════════════════════════════════
 let wsConn2=null, wsReconnectTimer2=null;
 
 function startWebSocket2(){
   if(wsConn2){try{wsConn2.close();}catch(e){}}
   clearTimeout(wsReconnectTimer2);
-  const syms=DEFAULT_PAIRS.slice(100,200);
+  const syms=DEFAULT_PAIRS.slice(125,250);
   if(!syms.length)return;
   const streams=syms.map(s=>s.toLowerCase()+'@miniTicker').join('/');
   try{
