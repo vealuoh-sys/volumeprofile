@@ -422,11 +422,18 @@ footer{margin-top:18px;padding-top:10px;border-top:1px solid var(--border);displ
 .active-alerts{display:flex;flex-direction:column;gap:3px;max-height:100px;overflow-y:auto;}
 .alert-item{display:flex;align-items:center;justify-content:space-between;font-size:var(--fs-2);padding:3px 0;border-bottom:1px solid var(--border);}
 .alert-del{color:var(--vah);cursor:pointer;}
-@media(max-width:750px){.vp-sidebar,.modal-tf-row,.modal-ctx-bar{display:none;}.chart-info-bar{grid-template-columns:repeat(2,1fr);}}
+@media(max-width:750px){
+  .vp-sidebar,.modal-ctx-bar{display:none;}
+  .chart-info-bar{grid-template-columns:repeat(2,1fr);}
+  .modal-tf-row{flex-wrap:wrap;}
+  .modal-ctx-compact{display:block !important;} /* mobile gets the readable one-liner instead of nothing */
+  #layerToolbar>div{flex-wrap:nowrap !important;overflow-x:auto;-webkit-overflow-scrolling:touch;}
+}
 body.simple-mode #qualityFiltersRow{display:none !important;}
 #simpleModeBtn.on{background:rgba(0,255,178,.12);border-color:var(--acc);color:var(--acc);}
-.modal.clean-chart .modal-ctx-bar{max-height:22px;overflow:hidden;opacity:.45;}
-.modal.clean-chart .rr-panel{max-height:30px;overflow:hidden;opacity:.55;}
+.modal-ctx-compact{display:none;padding:3px 14px;background:var(--bg);border-bottom:1px solid var(--border);font-size:var(--fs-1);color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.modal.clean-chart .modal-ctx-bar,.modal.clean-chart .rr-panel{display:none;}
+.modal.clean-chart .modal-ctx-compact{display:block;}
 #cleanChartBtn.on{background:rgba(0,255,178,.12);border-color:var(--acc);color:var(--acc);}
 .modal-ctx-bar .ctx-item.ctx-dim{opacity:.28;}
 #ctxShowAllBtn.on{background:rgba(0,191,255,.12);border-color:var(--acc2);color:var(--acc2);opacity:1;}
@@ -766,6 +773,7 @@ body.simple-mode #qualityFiltersRow{display:none !important;}
       <div class="ctx-item" data-k="TAPE">TAPE <span class="ctx-val" id="ctxTape">—</span></div>
       <button class="ctx-item" id="ctxShowAllBtn" onclick="toggleCtxRelevance()" style="cursor:pointer;background:transparent;border:1px solid var(--border2);color:var(--muted)" title="By default this strip dims fields that aren't typically relevant to the fired signal's type, so you scan for the 2-3 that matter instead of all 17">🔍 ALL</button>
     </div>
+    <div class="modal-ctx-compact" id="ctxCompact">—</div>
     <div class="rr-panel" id="rrPanel">
       <div class="rr-item"><div class="rr-item-lbl">ENTRY</div><div class="rr-item-val" id="rrEntry">—</div></div>
       <div class="rr-item"><div class="rr-item-lbl">STOP</div><div class="rr-item-val rr-b" id="rrStop">—</div></div>
@@ -3909,7 +3917,7 @@ async function openChart(symbol,tf,sigType,vp){
   layerState.SR={};layerState.OB={};
   const bl=LABEL_MAP[sigType]||sigType;const badge=document.getElementById('modalBadge');badge.textContent=bl;badge.className=`badge ${sigType||'POC'}`;
   document.getElementById('modalTitle').textContent=symbol;document.getElementById('modalTF').textContent=(tf||'1h').toUpperCase();document.getElementById('modalPriceBig').textContent='—';document.getElementById('modalChange').textContent='—';
-  ['ctxTrend','ctxEMA20','ctxEMA50','ctxVolTier','ctxVolRatio','ctxHeat','ctxMS','ctxOB','ctxLiq','ctxConf','ctxCVD','ctxZScore','ctxTape'].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent='—';});
+  ['ctxTrend','ctxEMA20','ctxEMA50','ctxVolTier','ctxVolRatio','ctxHeat','ctxMS','ctxOB','ctxLiq','ctxConf','ctxCVD','ctxZScore','ctxTape','ctxCompact'].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent='—';});
   document.querySelectorAll('.modal-tf-btn').forEach(b=>b.classList.toggle('on',b.dataset.tf===(tf||'1h')));
   document.getElementById('modalOverlay').classList.add('open');document.getElementById('chartLoadingState').style.display='flex';document.getElementById('chartContainer').style.display='none';document.getElementById('chartInfoBar').style.display='none';
   document.getElementById('modalNote').value=tradeNotes[symbol]||'';
@@ -3955,6 +3963,13 @@ function applyCtxRelevance(sigType){
 function toggleCtxRelevance(){
   ctxShowAll=!ctxShowAll;
   applyCtxRelevance(currentSigType);
+}
+// Used by Clean Chart mode (desktop) and the mobile breakpoint — both need
+// a genuinely readable single line, not the full 17-field bar squeezed down.
+function updateCtxCompact(){
+  const el=document.getElementById('ctxCompact');if(!el)return;
+  const g=id=>{const e=document.getElementById(id);return e?e.textContent:'—';};
+  el.textContent=`${g('ctxTrend')} · VOL ${g('ctxVolTier')} ${g('ctxVolRatio')} · HEAT ${g('ctxHeat')} · CONF ${g('ctxConf')} · ${g('ctxOI')} · ${g('ctxFund')}`;
 }
 
 async function loadChartData(symbol,tf,vpHint){
@@ -4016,6 +4031,7 @@ async function loadChartData(symbol,tf,vpHint){
     try{const zr=calcZScoreVsBTC(symbol,currentTF);const zEl=document.getElementById('ctxZScore');if(zEl){if(zr){const col=zr.z>3.5?'#FFD700':zr.z<-3.5?'#FF5E3A':zr.z>1.5?'#00FFB2':'var(--muted)';zEl.style.color=col;zEl.textContent=`${zr.z>0?'+':''}${zr.z}${zr.anomalous?' ◈':''}`;}else{zEl.textContent='—';}}}catch(e){}
     // Improvement #9: Tape sweep
     try{const ts=detectTapeSweep(candles);const tsEl=document.getElementById('ctxTape');if(tsEl)tsEl.textContent=ts?`${ts.label} ${ts.ratio}×`:'NORMAL';}catch(e){}
+    try{updateCtxCompact();}catch(e){}
     const tEl=document.getElementById('infoTrend');tEl.textContent=trend==='UP'?'↑ UPTREND':trend==='DOWN'?'↓ DOWNTREND':'→ NEUTRAL';tEl.className='info-val '+(trend==='UP'?'trend-up':trend==='DOWN'?'trend-dn':'trend-n');
     const rr=calcRR(last.close,vp,currentSigType||'POC');
     document.getElementById('rrEntry').textContent='$'+fp(rr.entry);document.getElementById('rrStop').textContent='$'+fp(rr.stop);document.getElementById('rrT1').textContent='$'+fp(rr.t1);document.getElementById('rrT2').textContent='$'+fp(rr.t2);
@@ -4333,7 +4349,8 @@ function buildLWChart(candles,vp,sr,obs){
   const mainH=Math.max(240,Math.floor(window.innerHeight*(cleanChartMode?0.58:0.38)));
   const volH=62;
   const rsiH=80;
-  const SIDEBAR_W=106;
+  const isMobileW=window.innerWidth<=750; // matches the CSS breakpoint that hides .vp-sidebar
+  const SIDEBAR_W=isMobileW?0:106;
   // Measure actual modal inner width — much more reliable than window.innerWidth math
   const modalBody=container.closest('.modal-body')||container.parentElement;
   const availW=modalBody?modalBody.clientWidth:Math.floor(window.innerWidth*.94);
@@ -4660,7 +4677,8 @@ function toggleCleanChart(){
   const container=document.getElementById('chartContainer');
   const modalBody=container.closest('.modal-body')||container.parentElement;
   const mainH=Math.max(240,Math.floor(window.innerHeight*(cleanChartMode?0.58:0.38)));
-  const volH=62,rsiH=80,SIDEBAR_W=106;
+  const volH=62,rsiH=80;
+  const SIDEBAR_W=window.innerWidth<=750?0:106;
   const availW=modalBody?modalBody.clientWidth:Math.floor(window.innerWidth*.94);
   const mainW=Math.max(270,availW-SIDEBAR_W-2);
   mainEl.style.height=mainH+'px';mainEl.style.width=mainW+'px';
@@ -4682,9 +4700,10 @@ window.addEventListener('resize',()=>{
   if(!mainChartObj)return;
   const container=document.getElementById('chartContainer');
   const modalBody=container?container.closest('.modal-body')||container.parentElement:null;
+  const sidebarW=window.innerWidth<=750?0:106;
   const availW=modalBody?modalBody.clientWidth:Math.floor(window.innerWidth*.94);
-  const mainW=Math.max(270,availW-106-2);
-  const mainH=Math.max(240,Math.floor(window.innerHeight*.38));
+  const mainW=Math.max(270,availW-sidebarW-2);
+  const mainH=Math.max(240,Math.floor(window.innerHeight*(cleanChartMode?0.58:0.38)));
   const mainEl=document.getElementById('mainChart');
   const innerRow=document.getElementById('chartInnerRow');
   const sidebar=innerRow?innerRow.querySelector('.vp-sidebar'):null;
